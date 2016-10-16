@@ -21,48 +21,48 @@ from time import sleep
 
 def Setup(): # It's only used in Install or for repair
 
-        print("A root password is needed.")
+    print("A root password is needed.")
 
-        while True:
-            try:
-                password = getpass("Choose a password: ")
-                passwordcheck = getpass("Verify password: ")
+    while True:
+        try:
+            password = getpass("Choose a password: ")
+            passwordcheck = getpass("Verify password: ")
 
-                if password == passwordcheck:
-                    passwordhash = crypt(password) # SHA512 password hashing
-                    break
+            if password == passwordcheck:
+                passwordhash = crypt(password) # SHA512 password hashing
+                break
 
-                print("Input doesn't match, try again.")
+            print("Input doesn't match, try again.")
 
-            except KeyboardInterrupt:
-                rmtree(datapath), rmtree(temppath), rmtree(libpath), print() # To re-run the installation process, in case it is aborted
-                raise SystemExit
+        except KeyboardInterrupt:
+            rmtree(datapath), rmtree(temppath), rmtree(libpath), print() # To re-run the installation process, in case it is aborted
+            raise SystemExit
 
         print("New root password created.")
 
-        Process(target=Animation).start()
+    Process(target=Animation).start()
 
-        with open(sqlpath, 'w', encoding='UTF-8') as database, open(linkpath, 'w', encoding='UTF-8') as link:
-            database.write('')
-            link.write('{}') # Database, logs and temporary files creation
+    with open(sqlpath, 'w', encoding='UTF-8') as database, open(linkpath, 'w', encoding='UTF-8') as link:
+        database.write('')
+        link.write('{}') # Database, logs and temporary files creation
 
-        with open(loginpath, 'w', encoding='UTF-8') as log, open(historypath, 'w', encoding='UTF-8') as history:
-            log.write('')
-            history.write('')
+    with open(loginpath, 'w', encoding='UTF-8') as log, open(historypath, 'w', encoding='UTF-8') as history:
+        log.write('')
+        history.write('')
 
-        connection = connect(sqlpath)
-        sql = connection.cursor()
-        superuser, mail = 'root', 'root@sqlite3.com'
+    connection = connect(sqlpath)
+    sql = connection.cursor()
+    superuser, mail = 'root', 'root@sqlite3.com'
 
-        sql.execute('create table Users (Username text primary key not NULL, Password text not NULL, Email text)')
-        sql.execute('create table Library (ID integer primary key, Artist text, Music text, Album text, Duration text, Directory text)')
-        sql.execute('create table Playlist (ID integer primary key, User text, Name text)')
-        sql.execute('create table Track (ID integer primary key, LibrabryID integer, PlaylistID integer)')
-        sql.execute('insert into Users values (?, ?, ?)', (superuser, passwordhash, mail))
-        
-        connection.commit()
-        sql.close()
-        raise SystemExit
+    sql.execute('create table Users (Username text primary key not NULL, Password text not NULL, Email text)')
+    sql.execute('create table Library (ID integer primary key, Artist text, Music text, Album text, Duration text, Directory text)')
+    sql.execute('create table Playlist (ID integer primary key, User text, Name text)')
+    sql.execute('create table Track (ID integer primary key, LibrabryID integer, PlaylistID integer)')
+    sql.execute('insert into Users values (?, ?, ?)', (superuser, passwordhash, mail))
+    
+    connection.commit()
+    sql.close()
+    raise SystemExit
 
 
 class Interface():

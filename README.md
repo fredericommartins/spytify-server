@@ -3,7 +3,7 @@ Spytify Music Streaming Server
 
 ## Synopsis
 
-Spytify is a music streaming service based on Spotify, with the main purpose of streaming music **free of charge** and to provide to the community a **free as in speech** music streaming technology.
+Spytify is a music streaming service based on Spotify, with the main purpose of streaming music **free of charge** and to provide the community a **free as in speech** music streaming technology.
 
 ## Installation
 

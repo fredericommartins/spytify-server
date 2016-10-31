@@ -27,7 +27,7 @@ def Setup(sqlpath, loginpath, historypath, datapath, libpath): # It will only be
             print()
             raise SystemExit
 
-        print("New root password created.")
+    print("New root password created.")
 
     for folder in [datapath, libpath]:
         if not path.exists(folder) == True:
@@ -53,6 +53,6 @@ def Setup(sqlpath, loginpath, historypath, datapath, libpath): # It will only be
     
     connection.commit()
     sql.close()
-    pipe.put('Done', block=True)
+    pipe.put(True, block=True)
 
     print("Setup done, reboot the program to start.")

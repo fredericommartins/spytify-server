@@ -14,13 +14,16 @@ from multiprocessing import Process
 from mutagen import mp3
 from os import kill, listdir, path, popen, remove, system
 from pickle import dumps, loads
+from queue import Queue
 from readline import parse_and_bind
 from signal import SIGKILL
 from socket import socket, AF_INET, SO_REUSEADDR, SOL_SOCKET, SOCK_STREAM
 from sqlite3 import connect, Error, sqlite_version
 from sys import argv
+from threading import Thread
 
-from Source.setup import Setup
+from Source.setup import Setup # Spytify modules
+from Source.animations import Loading
 
 
 class Interface():
@@ -35,14 +38,18 @@ class Interface():
         connection.commit()
 
         sortedfiles = sorted([line for line in listdir(libpath)]) # Sort files for database
+        pipe = Queue()
 
-        for mpfile in sortedfiles: # Only .mp3 extensions will be inserted in the database
+        for n, mpfile in enumerate(sortedfiles): # Only .mp3 extensions will be inserted in the database
+            animation = Thread(target=Loading, args=(pipe,len(sortedfiles)))
+            
             if mpfile.endswith(".mp3"):
                 artist, song, album = mpfile.rpartition('.')[0].split('-')
                 length = ("{0:.2f}".format(mp3.MP3(libpath + '/' + mpfile).info.length/60)).replace('.', ':')
 
                 sql.execute('insert into Library values(NULL, ?, ?, ?, ?, ?)', (artist, song, album, length, mpfile)) 
                 connection.commit()
+                pipe.put(n, block=False)
 
         print(terminalwidth.format(Colors.Blue + "Welcome to Spytify Server Administration Console" + Colors.Close))
         print("Last login:", login, "\n") 
@@ -323,7 +330,7 @@ def Authentication(username, password, location): # User lookup and authenticati
                     login = line.split('|')[1][16:-1]
 
         if location == 'Server':
-            Interface.Server(login)
+            return login
 
         elif location.split(' ')[0] == 'Client':
             encryption = clientkey.encrypt('success'.encode('UTF-8'), 1024) # Encrypted message to the client
@@ -548,9 +555,14 @@ try:
 
     while True:
         password = getpass("Enter password (root): ")
-        Authentication('root', password, 'Server')
+        login = Authentication('root', password, 'Server')
+
+        if login:
+            break
 
         print("Wrong password.")
+
+    Interface.Server(login)
 
 except KeyboardInterrupt:
     sql.close(), print()

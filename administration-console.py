@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+
+__author__ = "Frederico Martins"
+__license__ = "GPLv3"
+__version__ = 1.0
 
 from ast import literal_eval
 from crypt import crypt
@@ -8,61 +12,15 @@ from datetime import datetime
 from getpass import getpass
 from multiprocessing import Process
 from mutagen import mp3
-from os import kill, listdir, makedirs, path, popen, remove, system
+from os import kill, listdir, path, popen, remove, system
 from pickle import dumps, loads
 from readline import parse_and_bind
 from signal import SIGKILL
-from shutil import rmtree
 from socket import socket, AF_INET, SO_REUSEADDR, SOL_SOCKET, SOCK_STREAM
 from sqlite3 import connect, Error, sqlite_version
 from sys import argv
-from time import sleep  
 
-
-def Setup(): # It's only used in Install or for repair
-
-    print("A root password is needed.")
-
-    while True:
-        try:
-            password = getpass("Choose a password: ")
-            passwordcheck = getpass("Verify password: ")
-
-            if password == passwordcheck:
-                passwordhash = crypt(password) # SHA512 password hashing
-                break
-
-            print("Input doesn't match, try again.")
-
-        except KeyboardInterrupt:
-            rmtree(datapath), rmtree(temppath), rmtree(libpath), print() # To re-run the installation process, in case it is aborted
-            raise SystemExit
-
-        print("New root password created.")
-
-    Process(target=Animation).start()
-
-    with open(sqlpath, 'w', encoding='UTF-8') as database, open(linkpath, 'w', encoding='UTF-8') as link:
-        database.write('')
-        link.write('{}') # Database, logs and temporary files creation
-
-    with open(loginpath, 'w', encoding='UTF-8') as log, open(historypath, 'w', encoding='UTF-8') as history:
-        log.write('')
-        history.write('')
-
-    connection = connect(sqlpath)
-    sql = connection.cursor()
-    superuser, mail = 'root', 'root@sqlite3.com'
-
-    sql.execute('create table Users (Username text primary key not NULL, Password text not NULL, Email text)')
-    sql.execute('create table Library (ID integer primary key, Artist text, Music text, Album text, Duration text, Directory text)')
-    sql.execute('create table Playlist (ID integer primary key, User text, Name text)')
-    sql.execute('create table Track (ID integer primary key, LibrabryID integer, PlaylistID integer)')
-    sql.execute('insert into Users values (?, ?, ?)', (superuser, passwordhash, mail))
-    
-    connection.commit()
-    sql.close()
-    raise SystemExit
+from Source.setup import Setup
 
 
 class Interface():
@@ -103,13 +61,13 @@ class Interface():
                 splitcommand = lowcommand.split(' ')
                 previoustime = datetime.today().timestamp()
 
-		if lowcommand == '':
+                if lowcommand == '':
                     continue
 
                 elif lowcommand == 'exit':
                     raise KeyboardInterrupt
 
-		else:
+                else:
                     print()
 
                 if lowcommand == 'help':
@@ -522,22 +480,6 @@ class Colors:
     Close = '\033[0m'
 
 
-def Animation(): # Installation progress
-
-    charlist = ['|', '/', '-', '\\']
-    previoustime = datetime.now().timestamp()
-    system('setterm -cursor off')
-
-    while round(datetime.now().timestamp() - previoustime) != 3:
-        for char in charlist:
-            sleep(0.12)
-            print("Installing ", char, end='\r')
-
-    system('setterm -cursor on')
-
-    print("Setup done, reboot the program to start.")
-
-
 def ShowTable(command): # Database table formatted output
 
     border, parameters, size = [], [], []
@@ -587,7 +529,7 @@ def ShowTable(command): # Database table formatted output
     print(finalformat)
 
 
-currentpath = path.dirname(path.realpath(argv[0]))
+currentpath = path.dirname(path.realpath(argv[0])) # pathdict
 datapath = currentpath + '/data'
 temppath = currentpath + '/temp'
 libpath = currentpath + '/libr'
@@ -596,15 +538,10 @@ loginpath = datapath + '/login.log'
 historypath = datapath + '/history.log'
 linkpath = temppath + '/link.log'
 
-folders = [datapath, temppath, libpath]
-
 try:
     if not path.exists(datapath): # Chech if a repair/install is needed
-        for folder in folders:
-            if not path.exists(folder) == True:
-                makedirs(folder)
-
-        Setup()
+        Setup(sqlpath, loginpath, historypath, datapath, libpath)
+        raise SystemExit
 
     connection = connect(sqlpath)
     sql = connection.cursor()

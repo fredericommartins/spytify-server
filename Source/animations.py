@@ -1,27 +1,28 @@
 from os import popen, system
-from sys import stdout
 from time import sleep
 
 from Source.communication import Pipe
 
 
-def Loading(pipe, libsize):
+def Loading(pipe, libsize): # Database initial insertion animation
 
     system('setterm -cursor off')
 
-    while True:
-        n = Pipe(pipe, True)
-        percentage = round(n/libsize*100)
+    done = Pipe(pipe, True)
 
-        stdout.write('\r')
-        stdout.write("Building database: [%-100s] %d%%" % ('='*percentage, percentage))
-        stdout.flush()
-        sleep(0.25)
+    while done:
+        freescreen = int(popen('stty size', 'r').read().split()[1]) - 26 # Calculate free screen size for progression bar
+        percentage = round(done/libsize*100)
+        progression = round(percentage*freescreen/100)
+
+        print("Building database: [{0:<{2}}] {1}%".format('='*progression, percentage, freescreen), end='\r')
+
+        done = Pipe(pipe, True)
 
     system('setterm -cursor on')
 
 
-def Progress(pipe): # Installation and repairment process animation handler 
+def Progress(pipe): # Installation and repairment process animation
 
     system('setterm -cursor off')
 

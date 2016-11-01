@@ -11,7 +11,6 @@ from Crypto.PublicKey import RSA
 from datetime import datetime
 from getpass import getpass
 from multiprocessing import Process
-from mutagen import mp3
 from os import kill, listdir, path, popen, remove, system
 from pickle import dumps, loads
 from queue import Queue
@@ -22,36 +21,29 @@ from sqlite3 import connect, Error, sqlite_version
 from sys import argv
 from threading import Thread
 
-from Source.setup import Setup # Spytify modules
+from Source.setup import Setup
 from Source.animations import Loading
+from Source.database import Building, Cleanup
 
 
 class Interface():
 
     def Server(login):
-
-        system('clear') 
-        terminalwidth = "{:^" + popen('stty size', 'r').read().split()[1] + "}\n" + "\n"
-        serverprocess = Process(target=Bond, args=()) # Socket server process
-
-        sql.execute('delete from Library') # Lib clean up, for new loading at program start
-        connection.commit()
-
-        sortedfiles = sorted([line for line in listdir(libpath)]) # Sort files for database
+        
         pipe = Queue()
 
-        for n, mpfile in enumerate(sortedfiles): # Only .mp3 extensions will be inserted in the database
-            animation = Thread(target=Loading, args=(pipe,len(sortedfiles)))
-            
-            if mpfile.endswith(".mp3"):
-                artist, song, album = mpfile.rpartition('.')[0].split('-')
-                length = ("{0:.2f}".format(mp3.MP3(libpath + '/' + mpfile).info.length/60)).replace('.', ':')
+        serverprocess = Process(target=Bond, args=())
+        animation = Thread(target=Loading, args=(pipe,len(listdir(libpath))))
 
-                sql.execute('insert into Library values(NULL, ?, ?, ?, ?, ?)', (artist, song, album, length, mpfile)) 
-                connection.commit()
-                pipe.put(n, block=False)
+        animation.start()
+        Cleanup(sql, connection)
+        Building(pipe, sql, connection, libpath)
+        animation.join()
 
-        print(terminalwidth.format(Colors.Blue + "Welcome to Spytify Server Administration Console" + Colors.Close))
+        system('clear')
+        terminalwidth = popen('stty size', 'r').read().split()[1]
+
+        print("{0:^{1}}\n\n".format(Colors.Blue + "Welcome to Spytify Server Administration Console" + Colors.Close, terminalwidth))
         print("Last login:", login, "\n") 
         print("Use", Colors.Underline + "exit" + Colors.Close + ", to leave the program.")
         print("Use", Colors.Underline + "help" + Colors.Close + ", for program info.")

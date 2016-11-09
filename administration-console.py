@@ -11,50 +11,50 @@ from Crypto.PublicKey import RSA
 from datetime import datetime
 from getpass import getpass
 from multiprocessing import Process
-from os import kill, listdir, path, popen, remove, system
+from os import kill, path
 from pickle import dumps, loads
 from queue import Queue
 from readline import parse_and_bind
 from signal import SIGKILL
 from socket import socket, AF_INET, SO_REUSEADDR, SOL_SOCKET, SOCK_STREAM
-from sqlite3 import connect, Error, sqlite_version
+from sqlite3 import connect, Error
 from sys import argv
+from textwrap import dedent
 from threading import Thread
 
+from Source.database import Building, Cleanup, Formatted, Timing
+from Source.log import History
+from Source.output import Text, Help, Loading, Welcome
+from Source.properties import Static 
 from Source.setup import Setup
-from Source.animations import Loading
-from Source.database import Building, Cleanup
 
 
-class Interface():
+class Interface(): # Server
 
-    def Server(login):
+    #def __init__(self):
+
+        #Authentication()
+        #DataBuild()
+
+
+    def Server(login): # Interface
         
         pipe = Queue()
-
         serverprocess = Process(target=Bond, args=())
-        animation = Thread(target=Loading, args=(pipe,len(listdir(libpath))))
+        animation = Thread(target=Loading, args=(pipe,Static.libpath))
 
         animation.start()
-        Cleanup(sql, connection)
-        Building(pipe, sql, connection, libpath)
+
+        Cleanup(sql, connection) # If --skip-database-build parameter invoked
+        Building(pipe, sql, connection, Static.libpath)
         animation.join()
-
-        system('clear')
-        terminalwidth = popen('stty size', 'r').read().split()[1]
-
-        print("{0:^{1}}\n\n".format(Colors.Blue + "Welcome to Spytify Server Administration Console" + Colors.Close, terminalwidth))
-        print("Last login:", login, "\n") 
-        print("Use", Colors.Underline + "exit" + Colors.Close + ", to leave the program.")
-        print("Use", Colors.Underline + "help" + Colors.Close + ", for program info.")
-        print(Colors.Shade + "SQLite3 " + sqlite_version + " v." + Colors.Close, "\n") # Welcome screen 
+        Welcome(login)
 
         while True:
             try:
                 command = input("root# ")
 
-                with open(historypath, 'a') as history: # Writes all executed commands in history.log
-                    history.write("Date: {1} | # {0}\n".format(command, datetime.now().replace(microsecond=0)))
+                History(command, Static.historypath)
 
                 lowcommand = command.lower()
                 splitcommand = lowcommand.split(' ')
@@ -70,57 +70,44 @@ class Interface():
                     print()
 
                 if lowcommand == 'help':
-                    print("Server:", "\n")
-                    print("# server start                                            | Start the socket server.")
-                    print("# server stop                                             | Stop the socket server.")
-                    print("# server status                                           | Print server status.")
-                    print("# server connections                                      | Print for active connections.")
-                    print("# server kill PID                                         | Terminate an existing connection.", "\n")
-                    print("Database:", "\n")
-                    print("# show tables                                             | Print existing tables.")
-                    print("# select * from sqlite_master where type='table'          | Print existing tables and their schemas.")
-                    print("# create table TABLE(TITLE text, TITLE int)               | Create a new table.")
-                    print("# drop table TABLE                                        | Delete specified table.")
-                    print("# select * from TABLE                                     | Print table records.")
-                    print("# insert into TABLE values('PARAMETER', 'PARAMETER')      | Insert new line in table.")
-                    print("# delete from TABLE where TITLE='PARAMETER'               | Delete specified line.", "\n")
+                    Help()
                 
                 elif lowcommand == 'server start':
                     if not serverprocess.is_alive() == True:
                         serverprocess.start()
-                        print("Server is currently " + Colors.Green + "on" + Colors.Close + ".\n")
+                        print("Server is currently {0}on{1}.\n".format(Text.Green, Text.Close))
 
                     elif serverprocess.is_alive() == True:
-                        print("Error, the server is already" + Colors.Green + "on" + Colors.Close + ".\n")
+                        print("Error, the server is already {0}on{1}.\n".format(Text.Green, Text.Close))
 
                 elif lowcommand == 'server stop':
                     if serverprocess.is_alive() == True:
                         serverprocess.terminate()
 
-                        with open(linkpath, 'r') as readlink:
+                        with open(Static.linkpath, 'r') as readlink:
                             connections = [literal_eval(line) for line in readlink][0]
 
                             for PID in connections.values(): # Kill all server connections/processes
                                 kill(int(PID), SIGKILL)
 
-                        with open(linkpath, 'w', encoding='UTF-8') as writelink:
+                        with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
                             writelink.write('{}')
 
-                        print("Server is currently " + Colors.Red + "off" + Colors.Close + ".\n")
+                        print("Server is currently {0}off{1}.\n".format(Text.Red, Text.Close))
 
                     elif not serverprocess.is_alive() == True:
-                        print("Error, the server is already " + Colors.Red + "off" + Colors.Close + ".\n")
+                        print("Error, the server is already {0}off{1}.\n".format(Text.Red, Text.Close))
 
                 elif lowcommand == 'server status':
                     if serverprocess.is_alive() == True:
-                        print(Colors.Green + "On" + Colors.Close + "\n")
+                        print("{0}On{1}\n".format(Text.Green, Text.Close))
 
                     elif not serverprocess.is_alive() == True:
-                        print(Colors.Red + "Off" + Colors.Close + "\n")
+                        print("{0}Off{1}\n".format(Text.Red, Text.Close))
 
                 elif lowcommand == 'server connections':
                     if serverprocess.is_alive() == True:
-                        with open(linkpath, 'r') as readlink:
+                        with open(Static.linkpath, 'r') as readlink:
                             connections = [literal_eval(line) for line in readlink][0]
 
                             if len(connections) == 0:
@@ -133,10 +120,10 @@ class Interface():
                             print()
 
                     elif not serverprocess.is_alive() == True:
-                        print("The server is not on.", "\n")
+                        print("The server is not on.\n")
 
                 elif all([splitcommand[0] == 'server', splitcommand[1] == 'kill']):
-                    with open(linkpath, 'r') as readlink:
+                    with open(Static.linkpath, 'r') as readlink:
                         connections = [literal_eval(line) for line in readlink][0]
 
                         if int(splitcommand[2]) not in connections.values():
@@ -147,23 +134,29 @@ class Interface():
 
                             update = {IP: PID for IP, PID in connections.items() if PID != int(splitcommand[2])}
 
-                            with open(linkpath, 'w', encoding='UTF-8') as writelink:
+                            with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
                                 writelink.write(str(update))
 
                             print("Connection killed.")
 
                         print()
 
+
+                elif lowcommand ==  'server rebuild':
+                    animation = Thread(target=Loading, args=(pipe,Static.libpath))
+                    animation.start()
+                    Cleanup(sql, connection) # If --skip-database-build parameter invoked
+                    Building(pipe, sql, connection, Static.libpath)
+                    animation.join()
+
                 elif lowcommand == 'show tables':
                     command = 'select name from sqlite_master where type=\'table\''
-                    ShowTable(command)
-
-                    print("Time:", round(datetime.today().timestamp() - previoustime, 5), "s\n")
+                    Formatted(sql,  command)
+                    Timing(previoustime)
 
                 elif splitcommand[0] == 'select':
-                    ShowTable(command) # Content is printed in a sorted fashion and with a sql-like table
-
-                    print("Time:", round(datetime.today().timestamp() - previoustime, 5), "s\n")
+                    Formatted(sql, command) # Content is printed in a sorted fashion and with a sql-like table
+                    Timing(previoustime)
 
                 elif all([splitcommand[0] == 'insert', splitcommand[2] == 'users']): # For every new user, the password is automatically converted to SHA512
                     passwordhash = '\'' + crypt(command.split(', ')[1].strip('\'')) + '\'' 
@@ -171,25 +164,25 @@ class Interface():
                     sql.execute(command)
                     connection.commit()
 
-                    print("Time:", round(datetime.today().timestamp() - previoustime, 5), "s\n")
+                    Timing(previoustime)
 
                 else:
                     sql.execute(command)
                     connection.commit()
 
-                    print("Time:", round(datetime.today().timestamp() - previoustime, 5), "s\n")
+                    Timing(previoustime)
 
             except IndexError:
-                print("Error ( invalid command )", "\n")
+                print("Invalid command.\n")
 
             except UnboundLocalError:
-                print(Colors.Italic + "The table has no records." + Colors.Close, "\n")
+                print("{0}The table has no records.{1}\n".format(Text.Italic, Text.Close))
 
             except AssertionError:
-                print("Reboot the program in order to start the server again.", "\n")
+                print("Reboot the program in order to start the server again.\n")
 
             except Error as debug:
-                print("Error (", debug, ")", "\n")
+                print("Error ({0}).\n".format(debug))
 
             except KeyboardInterrupt:
                 try:
@@ -203,7 +196,7 @@ class Interface():
                     serverprocess.terminate()
 
                 try:
-                    with open(linkpath, 'r') as readlink:
+                    with open(Static.linkpath, 'r') as readlink:
                         connections = [literal_eval(line) for line in readlink][0]
 
                         if not len(connections) == 0:
@@ -213,7 +206,7 @@ class Interface():
                         raise ProcessLookupError
 
                 except ProcessLookupError:
-                    with open(linkpath, 'w', encoding='UTF-8') as writelink:
+                    with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
                         writelink.write('{}')
 
                     sql.close()
@@ -230,7 +223,7 @@ class Interface():
                 try:
                     update = {IP: PID for IP, PID in connections.items() if PID != int(connections[clientIP[0]])}
 
-                    with open(linkpath, 'w', encoding='UTF-8') as writelink:
+                    with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
                         writelink.write(str(update))
 
                     raise SystemExit
@@ -266,7 +259,7 @@ class Interface():
             for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
                 album = line[3]
 
-            jpgpath = libpath + '/' + album + '.jpg'
+            jpgpath = Static.libpath + '/' + album + '.jpg'
 
             with open(jpgpath, 'rb') as openfile:
                 readfile = openfile.read()
@@ -286,7 +279,7 @@ class Interface():
             for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
                 directory = line[5]
 
-            songpath = libpath + '/' + directory
+            songpath = Static.libpath + '/' + directory
 
             with open(songpath, 'rb') as openfile:
                 readfile = openfile.read()
@@ -313,9 +306,9 @@ def Authentication(username, password, location): # User lookup and authenticati
         hashedtext, hashingtext = 'no', 'user'
 
     if hashingtext == hashedtext:
-        with open(loginpath, 'r') as readlog, open(loginpath, 'a') as writelog:
+        with open(Static.loginpath, 'r') as readlog, open(Static.loginpath, 'a') as writelog:
             writelog.write("User: {0:<12} | Login success: {2} | In: {1}\n".format(username, location, datetime.now().replace(microsecond=0)))
-            login = Colors.Italic + "Não há login registado" + Colors.Close
+            login = Text.Italic + "Não há login registado" + Text.Close
 
             for line in readlog: # Last user login
                 if line.split(' ')[1] == username:
@@ -331,7 +324,7 @@ def Authentication(username, password, location): # User lookup and authenticati
 
     else:
         if not hashedtext + hashingtext == 'nouser':
-            with open(loginpath, 'a') as writelog: # Logs failed password matches in login.log
+            with open(Static.loginpath, 'a') as writelog: # Logs failed password matches in login.log
                 writelog.write("User: {0:<12} | Login attempt: {2} | In: {1}\n".format(username, location, datetime.now().replace(microsecond=0)))
 
 
@@ -356,14 +349,13 @@ def Bond(): # Socket server setup
             connectionprocess[n].start()
             connections[clientIP[0]] = connectionprocess[n].pid # Dictionary with client IP and PID
 
-            with open(linkpath, 'w', encoding='UTF-8') as writelink: # Information sharing with the parent process
+            with open(Static.linkpath, 'w', encoding='UTF-8') as writelink: # Information sharing with the parent process
                 writelink.write(str(connections))
 
             n += 1
 
     except OSError as debug:
-        print("\n")
-        print("Error starting the server (%s)\n\n" % debug, end="\rroot# ")
+        print("\nError starting the server ({})\n\n".format(debug), end="\rroot# ")
 
     except KeyboardInterrupt:
         raise SystemExit
@@ -401,7 +393,7 @@ def Link():
         if arguments[0] == 'getsession': # Session begin request
             session = arguments[1]
 
-            with open(loginpath, 'r') as login:
+            with open(Static.loginpath, 'r') as login:
                 for line in reversed(list(login)):
                     servermessage = 'nologin'
                     logIP = line.split('|')[-1].split(':')[-2].strip()
@@ -456,7 +448,7 @@ def Link():
             try:
                 update = {IP: PID for IP, PID in connections.items() if PID != int(connections[clientIP[0]])}
 
-                with open(linkpath, 'w', encoding='UTF-8') as writelink:
+                with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
                     writelink.write(str(update))
 
                 raise SystemExit
@@ -465,84 +457,12 @@ def Link():
                 raise SystemExit
 
 
-class Colors:
-
-    Cyan = '\033[96m'
-    Blue = '\033[94m'
-    Green = '\033[92m'
-    Yellow = '\033[93m'
-    Red = '\033[91m'
-    Bold = '\033[1m'
-    Underline = '\033[4m'
-    Shade = '\033[2m'
-    Italic = '\033[3m'
-    Close = '\033[0m'
-
-
-def ShowTable(command): # Database table formatted output
-
-    border, parameters, size = [], [], []
-    columntitle = [title[0] for title in sql.execute(command).description]
-
-    for line in sql.execute(command): # Table size
-        increment = 0
-
-        while not len(line) == increment:
-            stringline = len(str(line[increment]))
-
-            try:
-                if stringline > size[increment]:
-                    size[increment] = stringline
-
-            except IndexError:
-                if len(columntitle[increment]) < stringline:
-                    size.append(stringline)
-
-                else:
-                    size.append(len(columntitle[increment]))
-
-            increment += 1
-
-        increment = 0
-    
-    for argument in line: # Table structure
-        lineformat = []
-        parameters.append('| {:^' + str(size[increment]) + '} ')
-
-        while not size[increment] ==  len(lineformat) - 2:
-            lineformat.append('-')
-
-        border.append('+' + ''.join(lineformat))
-        increment += 1
-
-    finalformat = ''.join(border) + '+'
-    finalargument = ''.join(parameters) + '|'
-
-    print(finalformat)
-    print(finalargument.format(*columntitle))
-    print(finalformat)
-
-    for line in sql.execute(command):
-        print(finalargument.format(*line))
-
-    print(finalformat)
-
-
-currentpath = path.dirname(path.realpath(argv[0])) # pathdict
-datapath = currentpath + '/data'
-temppath = currentpath + '/temp'
-libpath = currentpath + '/libr'
-sqlpath = datapath + '/database.sqlite3'
-loginpath = datapath + '/login.log'
-historypath = datapath + '/history.log'
-linkpath = temppath + '/link.log'
-
 try:
-    if not path.exists(datapath): # Chech if a repair/install is needed
-        Setup(sqlpath, loginpath, historypath, datapath, libpath)
+    if not path.exists(Static.datapath): # Chech if a repair/install is needed
+        Setup(Static.sqlpath, Static.loginpath, Static.historypath, Static.datapath, Static.libpath)
         raise SystemExit
 
-    connection = connect(sqlpath)
+    connection = connect(Static.sqlpath)
     sql = connection.cursor()
 
     while True:

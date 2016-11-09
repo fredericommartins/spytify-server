@@ -1,7 +1,7 @@
 from queue import Empty
 
 
-def Pipe(pipe, condition=False): # Queue exception handler
+def Retrieve(pipe, condition=False): # Queue exception handler
 
     try:
        output = pipe.get(condition)

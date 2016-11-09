@@ -5,7 +5,7 @@ from queue import Queue
 from sqlite3 import connect
 from threading import Thread
 
-from Source.animations import Progress
+from Source.output import Progress
 
 
 def Setup(sqlpath, loginpath, historypath, datapath, libpath): # It will only be called if the data directory doesn't exist, attempting a program install/repair

@@ -1,13 +1,14 @@
 from datetime import datetime
 from mutagen import mp3
-from os import listdir
+from os import listdir, path
 
 from Source.output import Text
+from Source.properties import Directory
 
 
-def Building(pipe, sql, connection, libpath):
+def Building(pipe, sql, connection):
 
-    sortedfiles = sorted([line for line in listdir(libpath)]) # Sort files for database
+    sortedfiles = sorted([line for line in listdir(Directory.library)]) # Sort files for database
 
     try:
         for n, mpfile in enumerate(sortedfiles): # Only .mp3 extensions will be inserted in the database
@@ -18,7 +19,7 @@ def Building(pipe, sql, connection, libpath):
                 except ValueError:   
                     print("Music {} not inserted in database, due to format error".format(mpfile))
 
-                length = ("{0:.2f}".format(mp3.MP3(libpath + '/' + mpfile).info.length/60)).replace('.', ':')
+                length = ("{0:.2f}".format(mp3.MP3(path.join(Directory.library, mpfile)).info.length/60)).replace('.', ':')
                 sql.execute('insert into Library values(NULL, ?, ?, ?, ?, ?)', (artist, song, album, length, mpfile)) 
                 connection.commit()
                 pipe.put(n+1, block=True)

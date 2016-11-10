@@ -4,9 +4,9 @@ from textwrap import dedent
 from time import sleep
 
 from Source.communication import Retrieve
+from Source.properties import Directory
 
-
-def Help():
+def Help(): # Dynamic help
 
     print(dedent("""\
         Server:
@@ -29,7 +29,18 @@ def Help():
           # delete from TABLE where TITLE='PARAMETER'            |  Delete specified line.
     """))
 
-def Loading(pipe, libpath): # Database initial insertion animation
+    #print("Server:")
+
+    #for each in class.server:
+        #print(" # server {0:<40} |  {1}".format(each, each.help)) # each.help = annotations, each = methods
+
+    #print("SQL:")
+
+    #for each in class.sql:
+        #print(" # {0:<40} |  {1}".format(each, each.help))
+
+
+def Loading(pipe): # Database initial insertion animation
 
     system('setterm -cursor off')
 
@@ -37,14 +48,13 @@ def Loading(pipe, libpath): # Database initial insertion animation
 
     while data:
         freescreen = int(popen('stty size', 'r').read().split()[1]) - 26 # Calculate free screen size for progression bar
-        libsize = len(listdir(libpath))
+        libsize = len(listdir(Directory.library))
         percentage = round(data/libsize*100)
         progression = round(percentage*freescreen/100)
 
         print("{0}Building database: [{1:<{3}}] {2}%".format('\x1b[2K', '='*progression, percentage, freescreen), end='\r')
 
         data = Retrieve(pipe, True)
-        #   print(data, end='\r')
 
     print("\n")
     system('setterm -cursor on')

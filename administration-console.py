@@ -25,7 +25,7 @@ from threading import Thread
 from Source.database import Building, Cleanup, Formatted, Timing
 from Source.log import History
 from Source.output import Text, Help, Loading, Welcome
-from Source.properties import Static 
+from Source.properties import Directory, File
 from Source.setup import Setup
 
 
@@ -40,25 +40,26 @@ class Interface(): # Server
     def Server(login): # Interface
         
         pipe = Queue()
+        animation = Thread(target=Loading, args=(pipe,))
         serverprocess = Process(target=Bond, args=())
-        animation = Thread(target=Loading, args=(pipe,Static.libpath))
 
         animation.start()
 
         Cleanup(sql, connection) # If --skip-database-build parameter invoked
-        Building(pipe, sql, connection, Static.libpath)
-        animation.join()
+        Building(pipe, sql, connection)
+
+        animation.join() # Wait for thread to end before opening console, preventing output damage
+
         Welcome(login)
 
         while True:
             try:
                 command = input("root# ")
-
-                History(command, Static.historypath)
-
                 lowcommand = command.lower()
                 splitcommand = lowcommand.split(' ')
                 previoustime = datetime.today().timestamp()
+
+                History(command)
 
                 if lowcommand == '':
                     continue
@@ -84,13 +85,13 @@ class Interface(): # Server
                     if serverprocess.is_alive() == True:
                         serverprocess.terminate()
 
-                        with open(Static.linkpath, 'r') as readlink:
+                        with open(File.link, 'r') as readlink:
                             connections = [literal_eval(line) for line in readlink][0]
 
                             for PID in connections.values(): # Kill all server connections/processes
                                 kill(int(PID), SIGKILL)
 
-                        with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
+                        with open(File.link, 'w', encoding='UTF-8') as writelink:
                             writelink.write('{}')
 
                         print("Server is currently {0}off{1}.\n".format(Text.Red, Text.Close))
@@ -107,7 +108,7 @@ class Interface(): # Server
 
                 elif lowcommand == 'server connections':
                     if serverprocess.is_alive() == True:
-                        with open(Static.linkpath, 'r') as readlink:
+                        with open(File.link, 'r') as readlink:
                             connections = [literal_eval(line) for line in readlink][0]
 
                             if len(connections) == 0:
@@ -123,7 +124,7 @@ class Interface(): # Server
                         print("The server is not on.\n")
 
                 elif all([splitcommand[0] == 'server', splitcommand[1] == 'kill']):
-                    with open(Static.linkpath, 'r') as readlink:
+                    with open(File.link, 'r') as readlink:
                         connections = [literal_eval(line) for line in readlink][0]
 
                         if int(splitcommand[2]) not in connections.values():
@@ -134,7 +135,7 @@ class Interface(): # Server
 
                             update = {IP: PID for IP, PID in connections.items() if PID != int(splitcommand[2])}
 
-                            with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
+                            with open(File.link, 'w', encoding='UTF-8') as writelink:
                                 writelink.write(str(update))
 
                             print("Connection killed.")
@@ -143,10 +144,10 @@ class Interface(): # Server
 
 
                 elif lowcommand ==  'server rebuild':
-                    animation = Thread(target=Loading, args=(pipe,Static.libpath))
+                    animation = Thread(target=Loading, args=(pipe,Directory.library))
                     animation.start()
                     Cleanup(sql, connection) # If --skip-database-build parameter invoked
-                    Building(pipe, sql, connection, Static.libpath)
+                    Building(pipe, sql, connection)
                     animation.join()
 
                 elif lowcommand == 'show tables':
@@ -196,7 +197,7 @@ class Interface(): # Server
                     serverprocess.terminate()
 
                 try:
-                    with open(Static.linkpath, 'r') as readlink:
+                    with open(File.link, 'r') as readlink:
                         connections = [literal_eval(line) for line in readlink][0]
 
                         if not len(connections) == 0:
@@ -206,7 +207,7 @@ class Interface(): # Server
                         raise ProcessLookupError
 
                 except ProcessLookupError:
-                    with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
+                    with open(File.link, 'w', encoding='UTF-8') as writelink:
                         writelink.write('{}')
 
                     sql.close()
@@ -223,7 +224,7 @@ class Interface(): # Server
                 try:
                     update = {IP: PID for IP, PID in connections.items() if PID != int(connections[clientIP[0]])}
 
-                    with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
+                    with open(File.link, 'w', encoding='UTF-8') as writelink:
                         writelink.write(str(update))
 
                     raise SystemExit
@@ -259,7 +260,7 @@ class Interface(): # Server
             for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
                 album = line[3]
 
-            jpgpath = Static.libpath + '/' + album + '.jpg'
+            jpgpath = Directory.library + '/' + album + '.jpg'
 
             with open(jpgpath, 'rb') as openfile:
                 readfile = openfile.read()
@@ -279,7 +280,7 @@ class Interface(): # Server
             for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
                 directory = line[5]
 
-            songpath = Static.libpath + '/' + directory
+            songpath = Directory.library + '/' + directory
 
             with open(songpath, 'rb') as openfile:
                 readfile = openfile.read()
@@ -305,27 +306,26 @@ def Authentication(username, password, location): # User lookup and authenticati
     except IndexError: # No user in database
         hashedtext, hashingtext = 'no', 'user'
 
-    if hashingtext == hashedtext:
-        with open(Static.loginpath, 'r') as readlog, open(Static.loginpath, 'a') as writelog:
-            writelog.write("User: {0:<12} | Login success: {2} | In: {1}\n".format(username, location, datetime.now().replace(microsecond=0)))
+    with open(File.login, 'a+') as openlogin:
+        if hashingtext == hashedtext:
+            openlogin.write("User: {0:<12} | Login success: {2} | In: {1}\n".format(username, location, datetime.now().replace(microsecond=0)))
             login = Text.Italic + "Não há login registado" + Text.Close
 
-            for line in readlog: # Last user login
+            for line in openlogin: # Last user login
                 if line.split(' ')[1] == username:
                     login = line.split('|')[1][16:-1]
 
-        if location == 'Server':
-            return login
+            if location == 'Server':
+                return login
 
-        elif location.split(' ')[0] == 'Client':
-            encryption = clientkey.encrypt('success'.encode('UTF-8'), 1024) # Encrypted message to the client
-            client.send(encryption[0]) 
-            Interface.Client(username, login)
+            elif location.split(' ')[0] == 'Client':
+                encryption = clientkey.encrypt('success'.encode('UTF-8'), 1024) # Encrypted message to the client
+                client.send(encryption[0]) 
+                Interface.Client(username, login)
 
-    else:
-        if not hashedtext + hashingtext == 'nouser':
-            with open(Static.loginpath, 'a') as writelog: # Logs failed password matches in login.log
-                writelog.write("User: {0:<12} | Login attempt: {2} | In: {1}\n".format(username, location, datetime.now().replace(microsecond=0)))
+        else:
+            if not hashedtext + hashingtext == 'nouser': # Logs failed password matches
+                openlogin.write("User: {0:<12} | Login attempt: {2} | In: {1}\n".format(username, location, datetime.now().replace(microsecond=0)))
 
 
 def Bond(): # Socket server setup
@@ -349,7 +349,7 @@ def Bond(): # Socket server setup
             connectionprocess[n].start()
             connections[clientIP[0]] = connectionprocess[n].pid # Dictionary with client IP and PID
 
-            with open(Static.linkpath, 'w', encoding='UTF-8') as writelink: # Information sharing with the parent process
+            with open(File.link, 'w', encoding='UTF-8') as writelink: # Information sharing with the parent process
                 writelink.write(str(connections))
 
             n += 1
@@ -393,7 +393,7 @@ def Link():
         if arguments[0] == 'getsession': # Session begin request
             session = arguments[1]
 
-            with open(Static.loginpath, 'r') as login:
+            with open(File.login, 'r') as login:
                 for line in reversed(list(login)):
                     servermessage = 'nologin'
                     logIP = line.split('|')[-1].split(':')[-2].strip()
@@ -448,7 +448,7 @@ def Link():
             try:
                 update = {IP: PID for IP, PID in connections.items() if PID != int(connections[clientIP[0]])}
 
-                with open(Static.linkpath, 'w', encoding='UTF-8') as writelink:
+                with open(File.link, 'w', encoding='UTF-8') as writelink:
                     writelink.write(str(update))
 
                 raise SystemExit
@@ -458,11 +458,11 @@ def Link():
 
 
 try:
-    if not path.exists(Static.datapath): # Chech if a repair/install is needed
-        Setup(Static.sqlpath, Static.loginpath, Static.historypath, Static.datapath, Static.libpath)
+    if not path.exists(Directory.data): # Chech if a repair/install is needed
+        Setup()
         raise SystemExit
 
-    connection = connect(Static.sqlpath)
+    connection = connect(File.sql)
     sql = connection.cursor()
 
     while True:

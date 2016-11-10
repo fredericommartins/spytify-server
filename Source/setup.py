@@ -6,9 +6,10 @@ from sqlite3 import connect
 from threading import Thread
 
 from Source.output import Progress
+from Source.properties import Directory, File
 
 
-def Setup(sqlpath, loginpath, historypath, datapath, libpath): # It will only be called if the data directory doesn't exist, attempting a program install/repair
+def Setup(): # It will only be called if the data directory doesn't exist, attempting a program install/repair
 
     print("A root password is needed.")
 
@@ -29,7 +30,7 @@ def Setup(sqlpath, loginpath, historypath, datapath, libpath): # It will only be
 
     print("New root password created.")
 
-    for folder in [datapath, libpath]:
+    for folder in [Directory.data, Directory.library]:
         if not path.exists(folder) == True:
             makedirs(folder)
 
@@ -37,11 +38,11 @@ def Setup(sqlpath, loginpath, historypath, datapath, libpath): # It will only be
     animation = Thread(target=Progress, args=(pipe,))
     animation.start()
 
-    for each in [sqlpath, loginpath, historypath]:
+    for each in [File.sql, File.login, File.history]:
         with open(each, 'w', encoding='UTF-8') as openeach:
             openeach.write('')
 
-    connection = connect(sqlpath)
+    connection = connect(File.sql)
     sql = connection.cursor()
     superuser, mail = 'root', 'root@spytify.com'
 

@@ -18,18 +18,17 @@ from readline import parse_and_bind
 from signal import SIGKILL
 from socket import socket, AF_INET, SO_REUSEADDR, SOL_SOCKET, SOCK_STREAM
 from sqlite3 import connect, Error
-from sys import argv
 from textwrap import dedent
 from threading import Thread
 
 from Source.database import Building, Cleanup, Formatted, Timing
-from Source.log import History
+from Source.log import History, Login
 from Source.output import Text, Help, Loading, Welcome
 from Source.properties import Directory, File
 from Source.setup import Setup
 
 
-class Interface(): # Server
+class Interface(object): # Server
 
     #def __init__(self):
 
@@ -48,29 +47,26 @@ class Interface(): # Server
         Cleanup(sql, connection) # If --skip-database-build parameter invoked
         Building(pipe, sql, connection)
 
-        animation.join() # Wait for thread to end before opening console, preventing output damage
+        animation.join() # Wait for thread end to prevent output damage
 
         Welcome(login)
 
         while True:
             try:
-                command = input("root# ")
+                command = input("spytify# ")
                 lowcommand = command.lower()
                 splitcommand = lowcommand.split(' ')
                 previoustime = datetime.today().timestamp()
 
                 History(command)
 
-                if lowcommand == '':
-                    continue
+                #try:
+                #    getattr(self, )
 
-                elif lowcommand == 'exit':
+                if lowcommand == 'exit':
                     raise KeyboardInterrupt
 
-                else:
-                    print()
-
-                if lowcommand == 'help':
+                elif lowcommand == 'help':
                     Help()
                 
                 elif lowcommand == 'server start':
@@ -144,7 +140,7 @@ class Interface(): # Server
 
 
                 elif lowcommand ==  'server rebuild':
-                    animation = Thread(target=Loading, args=(pipe,Directory.library))
+                    animation = Thread(target=Loading, args=(pipe,))
                     animation.start()
                     Cleanup(sql, connection) # If --skip-database-build parameter invoked
                     Building(pipe, sql, connection)
@@ -295,28 +291,21 @@ class Interface(): # Server
             client.send('stop'.encode()) # File stream ending message
 
 
-def Authentication(username, password, location): # User lookup and authentication
+def Authentication(username, password, location): # User lookup and authentication # Remove location, find another way, vulnerable from client side
 
-    sql.execute ('select * from Users')
+    record = sql.execute('select * from Users where username=?', (username,))
 
-    try:
-        hashedtext = [line[1] for line in sql if line[0] == username][0] # Database hashed password
-        hashingtext = crypt(password, '${}${}$'.format(hashedtext.split('$')[1], hashedtext[3:19])) # Sent hashed password
+    if record:
+        for column in record:
+            hashedtext = column[1] # Database hashed password
+            hashingtext = crypt(password, '${}${}$'.format(hashedtext.split('$')[1], hashedtext[3:19])) # Received hashed password
 
-    except IndexError: # No user in database
-        hashedtext, hashingtext = 'no', 'user'
-
-    with open(File.login, 'a+') as openlogin:
         if hashingtext == hashedtext:
-            openlogin.write("User: {0:<12} | Login success: {2} | In: {1}\n".format(username, location, datetime.now().replace(microsecond=0)))
-            login = Text.Italic + "Não há login registado" + Text.Close
-
-            for line in openlogin: # Last user login
-                if line.split(' ')[1] == username:
-                    login = line.split('|')[1][16:-1]
+            logentry = Login.Read(username)
+            Login.Write(username, location, 'successful')
 
             if location == 'Server':
-                return login
+                return logentry
 
             elif location.split(' ')[0] == 'Client':
                 encryption = clientkey.encrypt('success'.encode('UTF-8'), 1024) # Encrypted message to the client
@@ -324,8 +313,10 @@ def Authentication(username, password, location): # User lookup and authenticati
                 Interface.Client(username, login)
 
         else:
-            if not hashedtext + hashingtext == 'nouser': # Logs failed password matches
-                openlogin.write("User: {0:<12} | Login attempt: {2} | In: {1}\n".format(username, location, datetime.now().replace(microsecond=0)))
+            Login.Write(username, location, 'failed')
+
+    else:
+        print("No such user.")
 
 
 def Bond(): # Socket server setup

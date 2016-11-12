@@ -20,17 +20,45 @@ from socket import socket, AF_INET, SO_REUSEADDR, SOL_SOCKET, SOCK_STREAM
 from sqlite3 import connect, Error
 from textwrap import dedent
 from threading import Thread
+from time import sleep
 
 from Source.database import Building, Cleanup, Formatted, Timing
+from Source.interface import Console
 from Source.log import History, Login
 from Source.output import Text, Help, Loading, Welcome
 from Source.properties import Directory, File
 from Source.setup import Setup
 
 
-class Interface(object): # Server
+class Administration(object): # Server
 
-    #def __init__(self):
+    def __init__(self):
+
+        global sql
+
+        try:
+            if not path.exists(Directory.data): # Chech if a repair/install is needed
+                Setup()
+                raise SystemExit
+
+            connection = connect(File.sql)
+            sql = connection.cursor()
+            
+            while True:
+                password = getpass("Enter password (root): ")
+                login = Authentication('root', password, 'Server')
+                if login:
+                    break
+
+                sleep(3)
+                print("Wrong password.")
+
+            Welcome(login)
+            Console().cmdloop()
+
+        except KeyboardInterrupt:
+            sql.close(), print()
+            raise SystemExit
 
         #Authentication()
         #DataBuild()
@@ -65,6 +93,9 @@ class Interface(object): # Server
 
                 if lowcommand == 'exit':
                     raise KeyboardInterrupt
+
+                elif not lowcommand:
+                    pass
 
                 elif lowcommand == 'help':
                     Help()
@@ -170,7 +201,7 @@ class Interface(object): # Server
                     Timing(previoustime)
 
             except IndexError:
-                print("Invalid command.\n")
+                print("Invalid command.")
 
             except UnboundLocalError:
                 print("{0}The table has no records.{1}\n".format(Text.Italic, Text.Close))
@@ -293,30 +324,28 @@ class Interface(object): # Server
 
 def Authentication(username, password, location): # User lookup and authentication # Remove location, find another way, vulnerable from client side
 
-    record = sql.execute('select * from Users where username=?', (username,))
+    sql.execute('select * from Users where username=?', (username,))
 
-    if record:
-        for column in record:
+    for column in sql:
+        if column:
             hashedtext = column[1] # Database hashed password
-            hashingtext = crypt(password, '${}${}$'.format(hashedtext.split('$')[1], hashedtext[3:19])) # Received hashed password
+            typed, salt, hashed = filter(None, hashedtext.split('$'))
+            hashingtext = crypt(password, '${}${}$'.format(typed, salt)) # Received hashed password
 
-        if hashingtext == hashedtext:
-            logentry = Login.Read(username)
-            Login.Write(username, location, 'successful')
+            if hashingtext == hashedtext:
+                logentry = Login.Read(username)
+                Login.Write(username, location, 'successful')
 
-            if location == 'Server':
-                return logentry
+                if location == 'Server':
+                    return logentry
 
-            elif location.split(' ')[0] == 'Client':
-                encryption = clientkey.encrypt('success'.encode('UTF-8'), 1024) # Encrypted message to the client
-                client.send(encryption[0]) 
-                Interface.Client(username, login)
+                elif location.split(' ')[0] == 'Client':
+                    encryption = clientkey.encrypt('success'.encode('UTF-8'), 1024) # Encrypted message to the client
+                    client.send(encryption[0]) 
+                    Interface.Client(username, login)
 
-        else:
-            Login.Write(username, location, 'failed')
-
-    else:
-        print("No such user.")
+            else:
+                Login.Write(username, location, 'failed')
 
 
 def Bond(): # Socket server setup
@@ -379,7 +408,7 @@ def Link():
         
         if arguments == None or arguments == 'error':
             arguments = 'error'
-            servermessage = 'error'
+            servermessage = 'Invalid characteres'
 
         if arguments[0] == 'getsession': # Session begin request
             session = arguments[1]
@@ -421,7 +450,7 @@ def Link():
                     servermessage = 'sqlerror'
 
         elif arguments[0] == 'login': #and len(arguments) == 3: # Login request
-            servermessage = 'unmatched'
+            servermessage = 'Username or Password incorrect'
 
             if len(arguments) == 4:   
                 action, username, password, session = arguments
@@ -448,25 +477,4 @@ def Link():
                 raise SystemExit
 
 
-try:
-    if not path.exists(Directory.data): # Chech if a repair/install is needed
-        Setup()
-        raise SystemExit
-
-    connection = connect(File.sql)
-    sql = connection.cursor()
-
-    while True:
-        password = getpass("Enter password (root): ")
-        login = Authentication('root', password, 'Server')
-
-        if login:
-            break
-
-        print("Wrong password.")
-
-    Interface.Server(login)
-
-except KeyboardInterrupt:
-    sql.close(), print()
-    raise SystemExit
+Administration()

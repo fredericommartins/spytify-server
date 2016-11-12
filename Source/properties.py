@@ -1,3 +1,4 @@
+from datetime import datetime
 from os import path
 from sys import argv
 
@@ -20,3 +21,8 @@ class File:
     history = path.join(Directory.log, 'history.log')
     login = path.join(Directory.log, 'login.log')
     sql = path.join(Directory.data, 'database.sqlite3') # Replace sqlite3 with mariadb and other SQL servers, change code to make possible to establish connections between server and db
+
+
+#class Shortcut:
+
+#    present = datetime.now().replace(microsecond=0)

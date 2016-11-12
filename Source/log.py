@@ -15,10 +15,10 @@ class Login(object):
 
     def Read(username):
 
-        with open(File.login, 'r') as openlogin:
+        with open(File.login, 'r') as openlogin: # Use logging instead
             for entry in reversed(list(openlogin)): # Last user login
                 if entry.split(' ')[1] == username:
-                    return entry.split('|')[1][16:-1]
+                    return entry.split('|')[1].split(': ')[-1]
 
             return '{0}Não há login registado{1}'.format(Text.Italic, Text.Close)
 

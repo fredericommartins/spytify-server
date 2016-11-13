@@ -10,6 +10,7 @@ Spytify is a music streaming service based on Spotify, with the main purpose of 
 The server executes a setup at it's first run, asking for a root password. The only dependencies needed by the server are listed below.
 
 Needed packages:
+- [Python3](https://www.python.org/download/releases/3.0/)
 - [PyCrypto](https://github.com/dlitz/pycrypto)
 - [Mutagen](https://github.com/quodlibet/mutagen)
 

@@ -1,5 +1,6 @@
 from datetime import datetime
 from os import path
+from sqlite3 import connect
 from sys import argv
 
 
@@ -23,6 +24,8 @@ class File:
     sql = path.join(Directory.data, 'database.sqlite3') # Replace sqlite3 with mariadb and other SQL servers, change code to make possible to establish connections between server and db
 
 
-#class Shortcut:
+class System:
 
-#    present = datetime.now().replace(microsecond=0)
+    connection = connect(File.sql)
+    present = datetime.now().replace(microsecond=0)
+    sql = connection.cursor()

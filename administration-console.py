@@ -6,7 +6,7 @@ __version__ = 1.0
 
 from ast import literal_eval
 from crypt import crypt
-from Crypto import Random
+from Crypto import Random # Change for python built-in cryptography module
 from Crypto.PublicKey import RSA
 from datetime import datetime
 from getpass import getpass
@@ -22,46 +22,44 @@ from textwrap import dedent
 from threading import Thread
 from time import sleep
 
+from Source.cryptography import Authentication
 from Source.database import Building, Cleanup, Formatted, Timing
 from Source.interface import Console
 from Source.log import History, Login
-from Source.output import Text, Help, Loading, Welcome
-from Source.properties import Directory, File
+from Source.output import Text, Help, Welcome
+from Source.properties import Directory, File, System
 from Source.setup import Setup
 
 
-class Administration(object): # Server
+class Administration(object):
+
+    self.serverprocess = Process(target=Bond, args=())
 
     def __init__(self):
 
-        global sql
-
-        try:
-            if not path.exists(Directory.data): # Chech if a repair/install is needed
-                Setup()
-                raise SystemExit
-
-            connection = connect(File.sql)
-            sql = connection.cursor()
-            
-            while True:
-                password = getpass("Enter password (root): ")
-                login = Authentication('root', password, 'Server')
-                if login:
-                    break
-
-                sleep(3)
-                print("Wrong password.")
-
-            Welcome(login)
-            Console().cmdloop()
-
-        except KeyboardInterrupt:
-            sql.close(), print()
+        if not path.exists(Directory.data): # Chech if a repair/install is needed
+            Setup()
             raise SystemExit
 
-        #Authentication()
-        #DataBuild()
+        #self.Environment()
+        self.Login()
+
+        Cleanup(System.sql, System.connection) # If --skip-database-build parameter invoked
+        Building(System.sql, System.connection)
+        Welcome(self.login)
+        Console().cmdloop()
+
+
+    def Login(self):
+
+        while True:
+            password = getpass("Enter password (root): ")
+            self.login = Authentication('root', password, 'Server')
+            if self.login:
+                break
+
+            sleep(3)
+            print("Wrong password.")
 
 
     def Server(login): # Interface
@@ -322,32 +320,6 @@ class Administration(object): # Server
             client.send('stop'.encode()) # File stream ending message
 
 
-def Authentication(username, password, location): # User lookup and authentication # Remove location, find another way, vulnerable from client side
-
-    sql.execute('select * from Users where username=?', (username,))
-
-    for column in sql:
-        if column:
-            hashedtext = column[1] # Database hashed password
-            typed, salt, hashed = filter(None, hashedtext.split('$'))
-            hashingtext = crypt(password, '${}${}$'.format(typed, salt)) # Received hashed password
-
-            if hashingtext == hashedtext:
-                logentry = Login.Read(username)
-                Login.Write(username, location, 'successful')
-
-                if location == 'Server':
-                    return logentry
-
-                elif location.split(' ')[0] == 'Client':
-                    encryption = clientkey.encrypt('success'.encode('UTF-8'), 1024) # Encrypted message to the client
-                    client.send(encryption[0]) 
-                    Interface.Client(username, login)
-
-            else:
-                Login.Write(username, location, 'failed')
-
-
 def Bond(): # Socket server setup
 
     global client, clientIP, connections
@@ -477,4 +449,9 @@ def Link():
                 raise SystemExit
 
 
-Administration()
+try:
+    Administration()
+
+except KeyboardInterrupt:
+    sql.close(), print()
+    raise SystemExit

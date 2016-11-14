@@ -1,14 +1,20 @@
 from datetime import datetime
 from mutagen import mp3
 from os import listdir, path
+from queue import Queue
+from threading import Thread
 
-from Source.output import Text
+from Source.output import Loading, Text
 from Source.properties import Directory
 
 
-def Building(pipe, sql, connection):
+def Building(sql, connection):
 
+    pipe = Queue()
+    animation = Thread(target=Loading, args=(pipe,))
     sortedfiles = sorted([line for line in listdir(Directory.library)]) # Sort files for database
+    
+    animation.start()
 
     try:
         for n, mpfile in enumerate(sortedfiles): # Only .mp3 extensions will be inserted in the database
@@ -28,6 +34,7 @@ def Building(pipe, sql, connection):
         pass
 
     pipe.put(False, block=True)
+    animation.join() # Wait for thread end to prevent output damage
 
 
 def Cleanup(sql, connection): # Library clean up for new loading at program start

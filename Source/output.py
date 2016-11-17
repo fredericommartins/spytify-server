@@ -1,5 +1,4 @@
 from os import listdir, popen, system
-from sqlite3 import sqlite_version
 from textwrap import dedent
 from time import sleep
 
@@ -76,23 +75,6 @@ def Progress(pipe): # Installation and repairment process animation
                 break
 
     system('setterm -cursor on')
-
-
-def Welcome(login): # Program terminal welcome message
-
-    system('clear')
-    terminalwidth = popen('stty size', 'r').read().split()[1]
-
-    print(dedent("""\
-        {1}{0:^{5}}{4}
-
-
-        Last login: {6} 
-        Use {2}exit{4}, to leave the program.
-        Use {2}help{4}, for program info.
-        {3}SQLite3 {7}{4}
-    """.format('Welcome to Spytify Server Administration Console', Text.Blue, Text.Underline, Text.Shade, Text.Close,
-        terminalwidth, login, sqlite_version)))
 
 
 class Text:

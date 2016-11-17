@@ -5,35 +5,35 @@ __license__ = "GPLv3"
 __version__ = 1.0
 
 from ast import literal_eval
+from collections import OrderedDict
+from cmd import Cmd
 from crypt import crypt
 from Crypto import Random # Change for python built-in cryptography module
 from Crypto.PublicKey import RSA
 from datetime import datetime
 from getpass import getpass
 from multiprocessing import Process
-from os import kill, path
+from os import kill, path, popen, system
 from pickle import dumps, loads
 from queue import Queue
 from readline import parse_and_bind
 from signal import SIGKILL
 from socket import socket, AF_INET, SO_REUSEADDR, SOL_SOCKET, SOCK_STREAM
-from sqlite3 import connect, Error
+from sqlite3 import connect, Error, sqlite_version
 from textwrap import dedent
 from threading import Thread
 from time import sleep
 
 from Source.cryptography import Authentication
 from Source.database import Building, Cleanup, Formatted, Timing
-from Source.interface import Console
 from Source.log import History, Login
-from Source.output import Text, Help, Welcome
+from Source.output import Text, Help
+from Source.process import Server
 from Source.properties import Directory, File, System
 from Source.setup import Setup
 
 
-class Administration(object):
-
-    self.serverprocess = Process(target=Bond, args=())
+class Startup(object):
 
     def __init__(self):
 
@@ -41,13 +41,10 @@ class Administration(object):
             Setup()
             raise SystemExit
 
-        #self.Environment()
         self.Login()
-
         Cleanup(System.sql, System.connection) # If --skip-database-build parameter invoked
         Building(System.sql, System.connection)
-        Welcome(self.login)
-        Console().cmdloop()
+        Console().cmdloop(intro=self.Welcome())
 
 
     def Login(self):
@@ -62,262 +59,311 @@ class Administration(object):
             print("Wrong password.")
 
 
-    def Server(login): # Interface
-        
-        pipe = Queue()
-        animation = Thread(target=Loading, args=(pipe,))
-        serverprocess = Process(target=Bond, args=())
+    def Welcome(self): # Program terminal welcome message
 
-        animation.start()
+        system('clear')
+        terminalwidth = popen('stty size', 'r').read().split()[1]
 
-        Cleanup(sql, connection) # If --skip-database-build parameter invoked
-        Building(pipe, sql, connection)
-
-        animation.join() # Wait for thread end to prevent output damage
-
-        Welcome(login)
-
-        while True:
-            try:
-                command = input("spytify# ")
-                lowcommand = command.lower()
-                splitcommand = lowcommand.split(' ')
-                previoustime = datetime.today().timestamp()
-
-                History(command)
-
-                #try:
-                #    getattr(self, )
-
-                if lowcommand == 'exit':
-                    raise KeyboardInterrupt
-
-                elif not lowcommand:
-                    pass
-
-                elif lowcommand == 'help':
-                    Help()
-                
-                elif lowcommand == 'server start':
-                    if not serverprocess.is_alive() == True:
-                        serverprocess.start()
-                        print("Server is currently {0}on{1}.\n".format(Text.Green, Text.Close))
-
-                    elif serverprocess.is_alive() == True:
-                        print("Error, the server is already {0}on{1}.\n".format(Text.Green, Text.Close))
-
-                elif lowcommand == 'server stop':
-                    if serverprocess.is_alive() == True:
-                        serverprocess.terminate()
-
-                        with open(File.link, 'r') as readlink:
-                            connections = [literal_eval(line) for line in readlink][0]
-
-                            for PID in connections.values(): # Kill all server connections/processes
-                                kill(int(PID), SIGKILL)
-
-                        with open(File.link, 'w', encoding='UTF-8') as writelink:
-                            writelink.write('{}')
-
-                        print("Server is currently {0}off{1}.\n".format(Text.Red, Text.Close))
-
-                    elif not serverprocess.is_alive() == True:
-                        print("Error, the server is already {0}off{1}.\n".format(Text.Red, Text.Close))
-
-                elif lowcommand == 'server status':
-                    if serverprocess.is_alive() == True:
-                        print("{0}On{1}\n".format(Text.Green, Text.Close))
-
-                    elif not serverprocess.is_alive() == True:
-                        print("{0}Off{1}\n".format(Text.Red, Text.Close))
-
-                elif lowcommand == 'server connections':
-                    if serverprocess.is_alive() == True:
-                        with open(File.link, 'r') as readlink:
-                            connections = [literal_eval(line) for line in readlink][0]
-
-                            if len(connections) == 0:
-                                print("No active server connections.")
-
-                            else:
-                                for line in connections:
-                                    print("IP - {:<15} | PID - {}".format(line, connections[line]))
-
-                            print()
-
-                    elif not serverprocess.is_alive() == True:
-                        print("The server is not on.\n")
-
-                elif all([splitcommand[0] == 'server', splitcommand[1] == 'kill']):
-                    with open(File.link, 'r') as readlink:
-                        connections = [literal_eval(line) for line in readlink][0]
-
-                        if int(splitcommand[2]) not in connections.values():
-                            print("PID doesn't exist.")
-
-                        else:
-                            kill(int(splitcommand[2]), SIGKILL)
-
-                            update = {IP: PID for IP, PID in connections.items() if PID != int(splitcommand[2])}
-
-                            with open(File.link, 'w', encoding='UTF-8') as writelink:
-                                writelink.write(str(update))
-
-                            print("Connection killed.")
-
-                        print()
+        print(dedent("""\
+            {1}{0:^{5}}{4}
 
 
-                elif lowcommand ==  'server rebuild':
-                    animation = Thread(target=Loading, args=(pipe,))
-                    animation.start()
-                    Cleanup(sql, connection) # If --skip-database-build parameter invoked
-                    Building(pipe, sql, connection)
-                    animation.join()
+            Last login: {6} 
+            Use {2}exit{4}, to leave the program.
+            Use {2}help{4}, for program info.
+            {3}SQLite3 {7}{4}
+        """.format('Welcome to Spytify Server Administration Console', Text.Blue, Text.Underline, Text.Shade, Text.Close,
+            terminalwidth, self.login, sqlite_version)))
 
-                elif lowcommand == 'show tables':
-                    command = 'select name from sqlite_master where type=\'table\''
-                    Formatted(sql,  command)
-                    Timing(previoustime)
 
-                elif splitcommand[0] == 'select':
-                    Formatted(sql, command) # Content is printed in a sorted fashion and with a sql-like table
-                    Timing(previoustime)
+class Console(Cmd):
+    
+    prompt = 'spytify# '
+    file = None
+    server = Server()
 
-                elif all([splitcommand[0] == 'insert', splitcommand[2] == 'users']): # For every new user, the password is automatically converted to SHA512
-                    passwordhash = '\'' + crypt(command.split(', ')[1].strip('\'')) + '\'' 
-                    command = "{0}, {1}, {2}".format(command.split(', ')[0], passwordhash, command.split(', ')[2])
-                    sql.execute(command)
-                    connection.commit()
+    def precmd(self, line):
 
-                    Timing(previoustime)
+        self.previoustime = datetime.today().timestamp()
+        History.Write(line)
+        return line
 
-                else:
-                    sql.execute(command)
-                    connection.commit()
 
-                    Timing(previoustime)
+    def do_help(self, arg):
 
-            except IndexError:
-                print("Invalid command.")
+        #if arg:
 
-            except UnboundLocalError:
-                print("{0}The table has no records.{1}\n".format(Text.Italic, Text.Close))
+        Help()
 
-            except AssertionError:
-                print("Reboot the program in order to start the server again.\n")
 
-            except Error as debug:
-                print("Error ({0}).\n".format(debug))
+    def do_exit(self, arg):
 
-            except KeyboardInterrupt:
-                try:
-                    if not lowcommand == 'exit':
-                        raise NameError
+        System.sql.close()
+        raise SystemExit
 
-                except NameError:
-                    print()
 
+    def do_server(self, arg):
+
+        if arg == 'start':
+            self.server.Start()
+
+        elif arg == 'stop':
+            self.server.Stop()
+            
+        else:
+            print('invalid command, use server start|stop')
+
+
+    def complete_server(self, text, line, begidx, endidx):
+
+        auto = line.partition(' ')[2]
+        offset = len(auto) - len(text)
+        return [arg[offset:] for arg in ['start', 'stop'] if arg.startswith(auto)]
+
+
+def Gorila(login): # Interface
+
+    while True:
+        try:
+            command = input("spytify# ")
+            lowcommand = command.lower()
+            splitcommand = lowcommand.split(' ')
+            previoustime = datetime.today().timestamp()
+
+            History(command)
+
+            #try:
+            #    getattr(self, )
+
+            if lowcommand == 'exit':
+                raise KeyboardInterrupt
+
+            elif not lowcommand:
+                pass
+
+            elif lowcommand == 'help':
+                Help()
+            
+            elif lowcommand == 'server start':
+                if not serverprocess.is_alive() == True:
+                    serverprocess.start()
+                    print("Server is currently {0}on{1}.\n".format(Text.Green, Text.Close))
+
+                elif serverprocess.is_alive() == True:
+                    print("Error, the server is already {0}on{1}.\n".format(Text.Green, Text.Close))
+
+            elif lowcommand == 'server stop':
                 if serverprocess.is_alive() == True:
                     serverprocess.terminate()
 
-                try:
                     with open(File.link, 'r') as readlink:
                         connections = [literal_eval(line) for line in readlink][0]
 
-                        if not len(connections) == 0:
-                            for PID in connections.values():
-                                kill(int(PID), SIGKILL)
+                        for PID in connections.values(): # Kill all server connections/processes
+                            kill(int(PID), SIGKILL)
 
-                        raise ProcessLookupError
-
-                except ProcessLookupError:
                     with open(File.link, 'w', encoding='UTF-8') as writelink:
                         writelink.write('{}')
 
-                    sql.close()
-                    raise SystemExit
+                    print("Server is currently {0}off{1}.\n".format(Text.Red, Text.Close))
+
+                elif not serverprocess.is_alive() == True:
+                    print("Error, the server is already {0}off{1}.\n".format(Text.Red, Text.Close))
+
+            elif lowcommand == 'server status':
+                if serverprocess.is_alive() == True:
+                    print("{0}On{1}\n".format(Text.Green, Text.Close))
+
+                elif not serverprocess.is_alive() == True:
+                    print("{0}Off{1}\n".format(Text.Red, Text.Close))
+
+            elif lowcommand == 'server connections':
+                if serverprocess.is_alive() == True:
+                    with open(File.link, 'r') as readlink:
+                        connections = [literal_eval(line) for line in readlink][0]
+
+                        if len(connections) == 0:
+                            print("No active server connections.")
+
+                        else:
+                            for line in connections:
+                                print("IP - {:<15} | PID - {}".format(line, connections[line]))
+
+                        print()
+
+                elif not serverprocess.is_alive() == True:
+                    print("The server is not on.\n")
+
+            elif all([splitcommand[0] == 'server', splitcommand[1] == 'kill']):
+                with open(File.link, 'r') as readlink:
+                    connections = [literal_eval(line) for line in readlink][0]
+
+                    if int(splitcommand[2]) not in connections.values():
+                        print("PID doesn't exist.")
+
+                    else:
+                        kill(int(splitcommand[2]), SIGKILL)
+
+                        update = {IP: PID for IP, PID in connections.items() if PID != int(splitcommand[2])}
+
+                        with open(File.link, 'w', encoding='UTF-8') as writelink:
+                            writelink.write(str(update))
+
+                        print("Connection killed.")
+
+                    print()
 
 
-    def Client(username, login): # Client handshake
+            elif lowcommand ==  'server rebuild':
+                animation = Thread(target=Loading, args=(pipe,))
+                animation.start()
+                Cleanup(sql, connection) # If --skip-database-build parameter invoked
+                Building(pipe, sql, connection)
+                animation.join()
 
-        while True:
+            elif lowcommand == 'show tables':
+                command = 'select name from sqlite_master where type=\'table\''
+                Formatted(sql,  command)
+                Timing(previoustime)
+
+            elif splitcommand[0] == 'select':
+                Formatted(sql, command) # Content is printed in a sorted fashion and with a sql-like table
+                Timing(previoustime)
+
+            elif all([splitcommand[0] == 'insert', splitcommand[2] == 'users']): # For every new user, the password is automatically converted to SHA512
+                passwordhash = '\'' + crypt(command.split(', ')[1].strip('\'')) + '\'' 
+                command = "{0}, {1}, {2}".format(command.split(', ')[0], passwordhash, command.split(', ')[2])
+                sql.execute(command)
+                connection.commit()
+
+                Timing(previoustime)
+
+            else:
+                sql.execute(command)
+                connection.commit()
+
+                Timing(previoustime)
+
+        except IndexError:
+            print("Invalid command.")
+
+        except UnboundLocalError:
+            print("{0}The table has no records.{1}\n".format(Text.Italic, Text.Close))
+
+        except AssertionError:
+            print("Reboot the program in order to start the server again.\n")
+
+        except Error as debug:
+            print("Error ({0}).\n".format(debug))
+
+        except KeyboardInterrupt:
             try:
-                Interface.Communicate(username)
+                if not lowcommand == 'exit':
+                    raise NameError
 
-            except (BrokenPipeError, ConnectionResetError): # Refresh the connections, if a client hangs
-                try:
-                    update = {IP: PID for IP, PID in connections.items() if PID != int(connections[clientIP[0]])}
+            except NameError:
+                print()
 
-                    with open(File.link, 'w', encoding='UTF-8') as writelink:
-                        writelink.write(str(update))
+            if serverprocess.is_alive() == True:
+                serverprocess.terminate()
 
-                    raise SystemExit
+            try:
+                with open(File.link, 'r') as readlink:
+                    connections = [literal_eval(line) for line in readlink][0]
 
-                except KeyError:
-                    raise SystemExit
+                    if not len(connections) == 0:
+                        for PID in connections.values():
+                            kill(int(PID), SIGKILL)
+
+                    raise ProcessLookupError
+
+            except ProcessLookupError:
+                with open(File.link, 'w', encoding='UTF-8') as writelink:
+                    writelink.write('{}')
+
+                sql.close()
+                raise SystemExit
 
 
-    def Communicate(username):
+def Client(username, login): # Client handshake
 
-        clientmessage = client.recv(1024)
-        decryption = str(keys.decrypt(clientmessage))[1:].strip('\'')
-        servermessage = ''
-        listsend = []
+    while True:
+        try:
+            Interface.Communicate(username)
 
-        if decryption == 'getlibrary': # Library request
-            for line in sql.execute('select * from Library'):
-                if not len(line) == 0:
-                    listline = list(line)
-                    listline[0] = str(listline[0])
-                    listsend.append("-".join(listline) + '|')
+        except (BrokenPipeError, ConnectionResetError): # Refresh the connections, if a client hangs
+            try:
+                update = {IP: PID for IP, PID in connections.items() if PID != int(connections[clientIP[0]])}
 
-            client.send(''.join(listsend).encode()) # Sends all available music in the Library table
+                with open(File.link, 'w', encoding='UTF-8') as writelink:
+                    writelink.write(str(update))
+
+                raise SystemExit
+
+            except KeyError:
+                raise SystemExit
+
+
+def Communicate(username):
+
+    clientmessage = client.recv(1024)
+    decryption = str(keys.decrypt(clientmessage))[1:].strip('\'')
+    servermessage = ''
+    listsend = []
+
+    if decryption == 'getlibrary': # Library request
+        for line in sql.execute('select * from Library'):
+            if not len(line) == 0:
+                listline = list(line)
+                listline[0] = str(listline[0])
+                listsend.append("-".join(listline) + '|')
+
+        client.send(''.join(listsend).encode()) # Sends all available music in the Library table
+        servermessage = 0
+
+    elif decryption == 'getplaylist': # User playlist request
+        for line in sql.execute('select * from Playlist where User = ?', (username,)):
+            listsend.append(str(line[0]) + '-' + line[2])
+
+        servermessage = '|'.join(listsend)
+
+    elif decryption.split(' ')[0] == 'getcover': # Album cover request, when not in client cache
+        for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
+            album = line[3]
+
+        jpgpath = Directory.library + '/' + album + '.jpg'
+
+        with open(jpgpath, 'rb') as openfile:
+            readfile = openfile.read()
+            client.send(readfile)
             servermessage = 0
 
-        elif decryption == 'getplaylist': # User playlist request
-            for line in sql.execute('select * from Playlist where User = ?', (username,)):
-                listsend.append(str(line[0]) + '-' + line[2])
+    elif decryption.split(' ')[0] == 'newplaylist': # New playlist request
+        name = 'Playlist ' + decryption.split(' ')[1]
+        sql.execute('insert into Playlist values (NULL, ?, ?)', (username, name))
+        connection.commit()
 
-            servermessage = '|'.join(listsend)
+        for line in sql.execute('select * from Playlist where User = ? and Name = ?', (username, name)):
+            ID, username, name = line
+            servermessage = str(ID) + '-' + name
 
-        elif decryption.split(' ')[0] == 'getcover': # Album cover request, when not in client cache
-            for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
-                album = line[3]
+    elif decryption.split(' ')[0] == 'play': # Music stream request
+        for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
+            directory = line[5]
 
-            jpgpath = Directory.library + '/' + album + '.jpg'
+        songpath = Directory.library + '/' + directory
 
-            with open(jpgpath, 'rb') as openfile:
-                readfile = openfile.read()
-                client.send(readfile)
-                servermessage = 0
+        with open(songpath, 'rb') as openfile:
+            readfile = openfile.read()
+            client.send(readfile)
+            servermessage = 0
+    
+    try:
+        encryption = clientkey.encrypt(servermessage.encode('UTF-8'), 1024) # Files are sent unencrypted
+        client.send(encryption[0]) # Information is sent via asymmetric encryption, RSA
 
-        elif decryption.split(' ')[0] == 'newplaylist': # New playlist request
-            name = 'Playlist ' + decryption.split(' ')[1]
-            sql.execute('insert into Playlist values (NULL, ?, ?)', (username, name))
-            connection.commit()
-
-            for line in sql.execute('select * from Playlist where User = ? and Name = ?', (username, name)):
-                ID, username, name = line
-                servermessage = str(ID) + '-' + name
-
-        elif decryption.split(' ')[0] == 'play': # Music stream request
-            for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
-                directory = line[5]
-
-            songpath = Directory.library + '/' + directory
-
-            with open(songpath, 'rb') as openfile:
-                readfile = openfile.read()
-                client.send(readfile)
-                servermessage = 0
-        
-        try:
-            encryption = clientkey.encrypt(servermessage.encode('UTF-8'), 1024) # Files are sent unencrypted
-            client.send(encryption[0]) # Information is sent via asymmetric encryption, RSA
-
-        except AttributeError:
-            client.send('stop'.encode()) # File stream ending message
+    except AttributeError:
+        client.send('stop'.encode()) # File stream ending message
 
 
 def Bond(): # Socket server setup
@@ -450,8 +496,8 @@ def Link():
 
 
 try:
-    Administration()
+    Startup()
 
 except KeyboardInterrupt:
-    sql.close(), print()
+    System.sql.close(), print()
     raise SystemExit

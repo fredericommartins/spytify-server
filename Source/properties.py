@@ -29,3 +29,4 @@ class System:
     connection = connect(File.sql)
     present = datetime.now().replace(microsecond=0)
     sql = connection.cursor()
+    port = 55400

@@ -4,11 +4,21 @@ from Source.output import Text
 from Source.properties import File
 
 
-def History(command): # Logs all executed commands in history.log
+class History(object):
 
-    if command: # To prevent newline logging
-        with open(File.history, 'a') as history: 
-            history.write("Date: {1} | # {0}\n".format(command, datetime.now().replace(microsecond=0)))
+    def Read():
+
+        #history = []
+        
+        with open(File.history, 'r') as openhistory: 
+            openhistory.read()
+
+
+    def Write(command): # Logs all executed commands
+
+        if command: # To prevent newline logging
+            with open(File.history, 'a') as openhistory: 
+                openhistory.write("Date: {1} | # {0}\n".format(command, datetime.now().replace(microsecond=0)))
 
 
 class Login(object):

@@ -5,7 +5,7 @@ from sys import argv
 
 
 progpath = path.dirname(path.realpath(argv[0]))
-libpath = '%s/libr' % progpath.rpartition('/')[0]
+libpath = '{0}/libr'.format(progpath.rpartition('/')[0])
 
 for music in listdir(libpath):
     if music.endswith('.mp3'):

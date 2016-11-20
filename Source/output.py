@@ -75,17 +75,3 @@ def Progress(pipe): # Installation and repairment process animation
                 break
 
     system('setterm -cursor on')
-
-
-class Text:
-
-    Cyan = '\033[96m'
-    Blue = '\033[94m'
-    Green = '\033[92m'
-    Yellow = '\033[93m'
-    Red = '\033[91m'
-    Bold = '\033[1m'
-    Underline = '\033[4m'
-    Shade = '\033[2m'
-    Italic = '\033[3m'
-    Close = '\033[0m'

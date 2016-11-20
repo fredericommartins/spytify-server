@@ -4,8 +4,8 @@ from os import listdir, path
 from queue import Queue
 from threading import Thread
 
-from Source.output import Loading, Text
-from Source.properties import Directory
+from Source.output import Loading
+from Source.properties import Directory, Text
 
 
 def Building(sql, connection):
@@ -96,4 +96,4 @@ def Timing(previoustime):
 
     querytime = round(datetime.today().timestamp() - previoustime, 4)
 
-    print(" {1}rows affected{2} ({0:.2f} sec.)\n".format(querytime, Text.Italic, Text.Close))
+    print(" {1}rows affected{2} ({0:.2f} sec.)".format(querytime, Text.Italic, Text.Close))

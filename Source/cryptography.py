@@ -18,13 +18,13 @@ def Authentication(username, password, location): # User lookup and authenticati
                 logentry = Login.Read(username)
                 Login.Write(username, location, 'successful')
 
-                if location == 'Server':
-                    return logentry
-
-                elif location.split(' ')[0] == 'Client':
-                    encryption = clientkey.encrypt('success'.encode('UTF-8'), 1024) # Encrypted message to the client
-                    client.send(encryption[0]) 
-                    Interface.Client(username, login)
+                return logentry
 
             else:
                 Login.Write(username, location, 'failed')
+
+
+# openssl genrsa -des3 -out server.orig.key 2048
+# openssl rsa -in server.orig.key -out server.key
+# openssl req -new -key server.key -out server.csr
+# openssl x509 -req -days 365 -in server.csr -signkey server.key -out server.crt

@@ -1,33 +1,36 @@
-from multiprocessing import Process
-from queue import Queue
+from multiprocessing import Queue, Process
 
 from Source.communication import Listener, Retrieve
-from Source.output import Text
+from Source.properties import Text
 
 
 class Server(object):
 
     pipe = Queue()
-    serverprocess = Process(target=Listener, args=(pipe,))
+    listener = Process(target=Listener, args=(pipe,))
 
     def Start(self):
 
-        if not self.serverprocess.is_alive():
+        if not self.listener.is_alive():
             self.pipe = Queue()
-            self.serverprocess = Process(target=Listener, args=(self.pipe,))
-            self.serverprocess.start()
-            print("Server is currently {0}on{1}.\n".format(Text.Green, Text.Close))
+            self.listener = Process(target=Listener, args=(self.pipe,))
+            self.listener.start()
+            print("Server is currently {0}on{1}.".format(Text.Green, Text.Close))
 
-        elif self.serverprocess.is_alive():
-            print("Error, the server is already {0}on{1}.\n".format(Text.Green, Text.Close))
+        elif self.listener.is_alive():
+            print("Error, the server is already {0}on{1}.".format(Text.Green, Text.Close))
 
 
     def Stop(self):
 
-        if self.serverprocess.is_alive():
-            connections = Retrieve(self.pipe, True)
-            for PID in connections.values(): # Kill all server connections
-                kill(int(PID), SIGKILL)
+        if self.listener.is_alive():
+            pool = Retrieve(self.pipe, True)
+            for process in pool.values():
+                process.shutdown()
+                #kill(int(PID), SIGKILL)
 
-            self.serverprocess.terminate()
-            print("Server is currently {0}off{1}.\n".format(Text.Red, Text.Close))
+            self.listener.terminate()
+            print("Server is currently {0}off{1}.".format(Text.Red, Text.Close))
+
+        elif not self.listener.is_alive():
+            print("Error, the server is already {0}off{1}.".format(Text.Red, Text.Close))

@@ -1,14 +1,11 @@
 from datetime import datetime
 
-from Source.output import Text
-from Source.properties import File
+from Source.properties import File, Text
 
 
 class History(object):
 
     def Read():
-
-        #history = []
         
         with open(File.history, 'r') as openhistory: 
             openhistory.read()
@@ -25,14 +22,19 @@ class Login(object):
 
     def Read(username):
 
-        with open(File.login, 'r') as openlogin: # Use logging instead
-            for entry in reversed(list(openlogin)): # Last user login
-                if entry.split(' ')[1] == username:
-                    return entry.split('|')[1].split(': ')[-1]
+        try:
+            with open(File.login, 'r') as openlogin: # Use logging instead
+                for entry in reversed(list(openlogin)): # Last user login registered
+                    if entry.split(' ')[1] == username:
+                        return entry.split('|')[1].split(': ')[-1]
 
+                raise FileNotFoundError
+
+        except FileNotFoundError:
             return '{0}Não há login registado{1}'.format(Text.Italic, Text.Close)
 
     def Write(username, location, event):
 
         with open(File.login, 'a') as openlogin:
-            openlogin.write('User: {0:<12} | Login {3}: {2} | In: {1}\n'.format(username, location, datetime.now().replace(microsecond=0), event))
+            login = 'Login {0}: {1}'.format(event, datetime.now().replace(microsecond=0))
+            openlogin.write('User: {0:<24} | {1:<37} | In: {2}\n'.format(username, login, location))

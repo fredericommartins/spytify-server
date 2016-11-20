@@ -27,9 +27,9 @@ from time import sleep
 from Source.cryptography import Authentication
 from Source.database import Building, Cleanup, Formatted, Timing
 from Source.log import History, Login
-from Source.output import Text, Help
+from Source.output import Help
 from Source.process import Server
-from Source.properties import Directory, File, System
+from Source.properties import Directory, File, System, Text
 from Source.setup import Setup
 
 
@@ -84,9 +84,23 @@ class Console(Cmd):
 
     def precmd(self, line):
 
+        if line:
+            print()
+
         self.previoustime = datetime.today().timestamp()
         History.Write(line)
         return line
+
+
+    def postcmd(self, stop, line):
+
+        if line:
+            print()
+
+
+    def emptyline(self):
+
+        pass
 
 
     def do_help(self, arg):
@@ -111,7 +125,7 @@ class Console(Cmd):
             self.server.Stop()
             
         else:
-            print('invalid command, use server start|stop')
+            print('invalid command, use: server {start,stop}')
 
 
     def complete_server(self, text, line, begidx, endidx):
@@ -282,216 +296,6 @@ def Gorila(login): # Interface
                     writelink.write('{}')
 
                 sql.close()
-                raise SystemExit
-
-
-def Client(username, login): # Client handshake
-
-    while True:
-        try:
-            Interface.Communicate(username)
-
-        except (BrokenPipeError, ConnectionResetError): # Refresh the connections, if a client hangs
-            try:
-                update = {IP: PID for IP, PID in connections.items() if PID != int(connections[clientIP[0]])}
-
-                with open(File.link, 'w', encoding='UTF-8') as writelink:
-                    writelink.write(str(update))
-
-                raise SystemExit
-
-            except KeyError:
-                raise SystemExit
-
-
-def Communicate(username):
-
-    clientmessage = client.recv(1024)
-    decryption = str(keys.decrypt(clientmessage))[1:].strip('\'')
-    servermessage = ''
-    listsend = []
-
-    if decryption == 'getlibrary': # Library request
-        for line in sql.execute('select * from Library'):
-            if not len(line) == 0:
-                listline = list(line)
-                listline[0] = str(listline[0])
-                listsend.append("-".join(listline) + '|')
-
-        client.send(''.join(listsend).encode()) # Sends all available music in the Library table
-        servermessage = 0
-
-    elif decryption == 'getplaylist': # User playlist request
-        for line in sql.execute('select * from Playlist where User = ?', (username,)):
-            listsend.append(str(line[0]) + '-' + line[2])
-
-        servermessage = '|'.join(listsend)
-
-    elif decryption.split(' ')[0] == 'getcover': # Album cover request, when not in client cache
-        for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
-            album = line[3]
-
-        jpgpath = Directory.library + '/' + album + '.jpg'
-
-        with open(jpgpath, 'rb') as openfile:
-            readfile = openfile.read()
-            client.send(readfile)
-            servermessage = 0
-
-    elif decryption.split(' ')[0] == 'newplaylist': # New playlist request
-        name = 'Playlist ' + decryption.split(' ')[1]
-        sql.execute('insert into Playlist values (NULL, ?, ?)', (username, name))
-        connection.commit()
-
-        for line in sql.execute('select * from Playlist where User = ? and Name = ?', (username, name)):
-            ID, username, name = line
-            servermessage = str(ID) + '-' + name
-
-    elif decryption.split(' ')[0] == 'play': # Music stream request
-        for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
-            directory = line[5]
-
-        songpath = Directory.library + '/' + directory
-
-        with open(songpath, 'rb') as openfile:
-            readfile = openfile.read()
-            client.send(readfile)
-            servermessage = 0
-    
-    try:
-        encryption = clientkey.encrypt(servermessage.encode('UTF-8'), 1024) # Files are sent unencrypted
-        client.send(encryption[0]) # Information is sent via asymmetric encryption, RSA
-
-    except AttributeError:
-        client.send('stop'.encode()) # File stream ending message
-
-
-def Bond(): # Socket server setup
-
-    global client, clientIP, connections
-
-    n = 0
-    connections = {}
-    connectionprocess = []
-
-    try:
-        server = socket()
-        server.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        server.bind(('', 55400))
-
-        while True:
-            server.listen(5)
-            client, clientIP = server.accept()
-
-            connectionprocess.append(Process(target=Link)) # Creates a new process for each new user
-            connectionprocess[n].start()
-            connections[clientIP[0]] = connectionprocess[n].pid # Dictionary with client IP and PID
-
-            with open(File.link, 'w', encoding='UTF-8') as writelink: # Information sharing with the parent process
-                writelink.write(str(connections))
-
-            n += 1
-
-    except OSError as debug:
-        print("\nError starting the server ({})\n\n".format(debug), end="\rroot# ")
-
-    except KeyboardInterrupt:
-        raise SystemExit
-
-
-def Link():
-
-    global clientkey, keys
-
-    keys = RSA.generate(1024, Random.new().read) # Public and private key creation, RSA
-    serverkey = dumps(keys.publickey()) # Server public key to send
-    client.send(serverkey)
-    clientkey = loads(client.recv(1024)) # Client public key
-
-    while True:
-
-        clientmessage = client.recv(1024)
-        decryption = str(keys.decrypt(clientmessage))[1:].strip('\'') # Encrypted message sent by the client, to decrypt
-        arguments = decryption.split(' ')
-
-        for argument in arguments:
-            if argument == '':
-                arguments = 'error'
-                break
-
-            for character in argument:
-                if character not in 'ABCDEFGHIJLMNOPQRSTUVXZKYWabcdefghijlmnopqrstuvxzkyw0123456789_.@':
-                    arguments = 'error'
-                    break 
-        
-        if arguments == None or arguments == 'error':
-            arguments = 'error'
-            servermessage = 'Invalid characteres'
-
-        if arguments[0] == 'getsession': # Session begin request
-            session = arguments[1]
-
-            with open(File.login, 'r') as login:
-                for line in reversed(list(login)):
-                    servermessage = 'nologin'
-                    logIP = line.split('|')[-1].split(':')[-2].strip()
-                    logsession = line[-14:].strip()
-                    logtry = line.split('|')[1].split(' ')[2].strip(':')
-
-                    if logIP == clientIP[0]:
-                        if logtry == 'success' and session == logsession: # Check the user last login
-                            username = line.split(':')[1].split('|')[0].strip() 
-
-                            for line in sql.execute('select * from Users where username = ?', (username,)):
-                                username, password, mail = line
-
-                            servermessage = 'session ' + username # In case user as chosen to save session
-                            break
-
-                        else: 
-                            break # In case it has not saved session
-
-        elif arguments[0] == 'register' and len(arguments) == 4: # New user request 
-            action, username, password, mail = arguments
-            if len(username) >= 13:
-                servermessage = 'usertoolong' # Username can't be more than 12 characters long
-
-            else:
-                passwordhash = crypt(password) # Password encryption
-
-                try:
-                    sql.execute('insert into Users values(?, ?, ?)', (username, passwordhash, mail))
-                    connection.commit() # Inserted user in database
-                    servermessage = 'registered'
-
-                except Error as debug:
-                    servermessage = 'sqlerror'
-
-        elif arguments[0] == 'login': #and len(arguments) == 3: # Login request
-            servermessage = 'Username or Password incorrect'
-
-            if len(arguments) == 4:   
-                action, username, password, session = arguments
-                Authentication(username, password, 'Client | IP: ' + clientIP[0] + ':' + str(clientIP[1]) + ' - ' + session)
-
-            else:
-                action, username, password = arguments
-                Authentication(username, password, 'Client | IP: ' + clientIP[0] + ':' + str(clientIP[1]))
-            
-        try:
-            encryption = clientkey.encrypt(servermessage.encode('UTF-8'), 1024)
-            client.send(encryption[0])
-
-        except (BrokenPipeError, ConnectionResetError): # Refresh connection handle when hang by the client
-            try:
-                update = {IP: PID for IP, PID in connections.items() if PID != int(connections[clientIP[0]])}
-
-                with open(File.link, 'w', encoding='UTF-8') as writelink:
-                    writelink.write(str(update))
-
-                raise SystemExit
-
-            except KeyError:
                 raise SystemExit
 
 

@@ -12,10 +12,9 @@ from Crypto import Random # Change for python built-in cryptography module
 from Crypto.PublicKey import RSA
 from datetime import datetime
 from getpass import getpass
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from os import kill, path, popen, system
 from pickle import dumps, loads
-from queue import Queue
 from readline import parse_and_bind
 from signal import SIGKILL
 from socket import socket, AF_INET, SO_REUSEADDR, SOL_SOCKET, SOCK_STREAM

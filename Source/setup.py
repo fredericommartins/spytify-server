@@ -1,7 +1,7 @@
 from crypt import crypt
 from getpass import getpass
 from os import makedirs, path
-from queue import Queue
+from multiprocessing import Queue
 from sqlite3 import connect
 from threading import Thread
 

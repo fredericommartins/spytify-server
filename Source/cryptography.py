@@ -6,22 +6,24 @@ from Source.properties import System
 
 def Authentication(username, password, location): # User lookup and authentication # Remove location, find another way, vulnerable from client side
 
-    System.sql.execute('select * from Users where username=?', (username,))
+    System.sql.execute('select password from Users where username=?', (username,))
+    
+    hashed = System.sql.fetchone()
+    if hashed:
+        hashed = hashed[0]
+        typed, salt = filter(None, hashed.split('$')[:3])
+        password = crypt(password, '${}${}$'.format(typed, salt)) # Received hashed password
 
-    for column in System.sql:
-        if column:
-            hashedtext = column[1] # Database hashed password
-            typed, salt, hashed = filter(None, hashedtext.split('$'))
-            hashingtext = crypt(password, '${}${}$'.format(typed, salt)) # Received hashed password
+        if password == hashed:
+            logentry = Login.Read(username)
+            Login.Write(username, location, 'successful')
 
-            if hashingtext == hashedtext:
-                logentry = Login.Read(username)
-                Login.Write(username, location, 'successful')
+            return logentry
 
-                return logentry
+        else:
+            Login.Write(username, location, 'failed')
 
-            else:
-                Login.Write(username, location, 'failed')
+    return None
 
 
 # openssl genrsa -des3 -out server.orig.key 2048

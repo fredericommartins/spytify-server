@@ -7,7 +7,7 @@ from sys import argv
 class Directory:
 
     main = path.dirname(path.realpath(argv[0])) # To remove later
-    #conf = '/etc/spytify'
+    #conf = '/etc/spytify' # certs go in here or /etc/pki
     data = path.join(main, 'data')
     #data = '/var/lib/spytify/data'
     library = path.join(main, 'libr')
@@ -23,6 +23,8 @@ class File:
     login = path.join(Directory.log, 'login.log')
     sql = path.join(Directory.data, 'database.sqlite3') # Replace sqlite3 with mariadb and other SQL servers, change code to make possible to establish connections between server and db
     #pid = '/var/run/spytify.pid'
+    crt = "Others/server.crt" # Mudar
+    key = "Others/server.key"
 
 
 class System:

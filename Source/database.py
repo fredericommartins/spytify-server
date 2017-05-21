@@ -1,7 +1,7 @@
 from datetime import datetime
 from mutagen import mp3
 from os import listdir, path
-from queue import Queue
+from multiprocessing import Queue
 from threading import Thread
 
 from Source.output import Loading

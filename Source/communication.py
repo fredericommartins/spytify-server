@@ -1,9 +1,12 @@
 from collections import OrderedDict
 from crypt import crypt
+from json import decoder, dumps, loads
 from multiprocessing import Process
 from queue import Empty
+from sqlite3 import Error
 from socket import socket
 from ssl import wrap_socket
+from time import sleep
 
 from Source.cryptography import Authentication
 from Source.properties import File, System
@@ -28,18 +31,15 @@ def Listener(pipe=False): # Socket server setup
     ciphers += "!aNULL:!eNULL:!EXPORT:!DSS:!DES:!RC4:!3DES:!MD5:!PSK" # Prevent unsafe chiphers usage 
 
     server.settimeout(2)
-    try:
-        server.bind(('', 44355))
-        server.listen()
 
-    except OSError as debug:
-        print("\n{0}".format(debug))
+    server.bind(('', 44355))
+    server.listen()
 
     while True:
         try:
             pipe.put(pool, block=False)
             client, address = server.accept()
-            sslsocket = wrap_socket(client, server_side=True, certfile="Others/server.crt", keyfile="Others/server.key", ciphers=ciphers)
+            sslsocket = wrap_socket(client, server_side=True, certfile=File.crt, keyfile=File.key, ciphers=ciphers)
             pool[address] = Process(target=API, args=(sslsocket, address)) # Creates a new process for each new user
             pool[address].start()
 
@@ -51,184 +51,186 @@ def Listener(pipe=False): # Socket server setup
             raise SystemExit
 
 
-class API(object):
+class API(object): # Build RestAPI
+
+    maximum_length = 24
 
     def __init__(self, client, address):
 
-        self.address = address
-        self.client = client
+        call = {'getlibrary': self.Getlibrary,
+                'getsession': self.Session,
+                'login':      self.Login,
+                'register':   self.Register}
 
-        while True:
-            self.message = self.client.read().decode().split(' ')
-            if self.Assert():
-                self.Session()
-                break
-
-            self.client.write('Invalid characteres'.encode())
-
-            #client.write('success'.encode()) 
-            #Interface.Client(username, login)
-
-    
-    def Assert(self):
+        self.address = address[0]
+        self.port = address[1]
+        self._client = client
 
         try:
-            for each in message:
-                if not each:
-                    raise ValueError
+            while True:
+                self._json = self.Listen()
+                if self._json and call[self._json['action']](): # Argument passed by the client, being the first the action call
+                    pass
+                    #while True:
+                    #    if self.Communicate():
+                    #        break
 
-                for char in each:
-                    if char not in 'ABCDEFGHIJLMNOPQRSTUVXZKYWabcdefghijlmnopqrstuvxzkyw0123456789_.@':
-                        raise ValueError
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
-        except ValueError:
-            return False
+        except KeyError:
+            self.Reply('No such call {}'.format(self._json['action']), label='error')
 
-        return True
-
-
+            
     def Session(self):
 
-        if action == 'getsession': # Session begin request # automatic login
-            with open(File.login, 'r') as login:
-                for line in reversed(list(login)):
-                    servermessage = 'nologin'
-                    logIP = line.split('|')[-1].split(':')[-2].strip()
-                    logsession = line[-14:].strip()
-                    logtry = line.split('|')[1].split(' ')[2].strip(':')
+        with open(File.login, 'r') as login:
+            for line in reversed(list(login)):
+                logIP = line.split('|')[-1].split(':')[-2].strip()
+                logsession = line[-14:].strip()
+                logtry = line.split('|')[1].split(' ')[2].strip(':')
 
-                    if logIP == address[0]:
-                        if logtry == 'success' and node == logsession: # Check the user last login
-                            username = line.split(':')[1].split('|')[0].strip() 
+                if logIP == self.address[0]:
+                    if logtry == 'success' and node == logsession: # Check the user last login
+                        self.username = line.split(':')[1].split('|')[0].strip()
 
-                            for line in sql.execute('select * from Users where username = ?', (username,)):
-                                username, password, mail = line
+                        for line in System.sql.execute('select * from Users where username = ?', (self.username,)):
+                            self.username, password, mail = line
 
-                            servermessage = 'session ' + username # In case user as chosen to save session
-                            break
+                        self.Reply('session {0}'.format(self.username), True) # In case user as chosen to save session
+                        return
 
-                        else: 
-                            break # In case it has not saved session
+                    else: 
+                        break # In case it has not saved session
 
-        elif action == 'register' and len(arguments) == 4: # New user request 
-            action, username, password, mail = arguments
-            if len(username) >= 13:
-                servermessage = 'usertoolong' # Username can't be more than 12 characters long
+        self.Reply('nologin', False, 'info')
 
-            else:
-                passwordhash = crypt(password) # Password encryption
+    def Login(self):
 
-                try:
-                    sql.execute('insert into Users values(?, ?, ?)', (username, passwordhash, mail))
-                    connection.commit() # Inserted user in database
-                    servermessage = 'registered'
+        # if len(self.message) == 4:   
+        #     action, self.username, password, session = self.message
+        #     if Authentication(self.username, password, 'Client | IP: {0}:{1} - {2}'.format(self.address[0], str(self.address[1]), session)):
+        #         return self.Reply('success', True)
 
-                except Error as debug:
-                    servermessage = 'sqlerror'
+        if Authentication(self._json['data']['username'], self._json['data']['password'], 'Client | IP: {0}:{1}'.format(self.address, self.port)):
+            self.username = self._json['data']['username']
+            return self.Reply('success', True)
 
-        elif action == 'login': #and len(arguments) == 3: # Login request
-            servermessage = 'Username or Password incorrect'
+        return self.Reply('Username or Password incorrect', False)
 
-            if len(arguments) == 4:   
-                action, username, password, session = arguments
-                Authentication(username, password, 'Client | IP: ' + address[0] + ':' + str(address[1]) + ' - ' + session)
+    def Register(self):
 
-            else:
-                action, username, password = arguments
-                Authentication(username, password, 'Client | IP: ' + address[0] + ':' + str(address[1]))
-            
-        try:
-            self.client.write(servermessage.encode())
+        for each in ['username', 'password']: # Check for unknown characters
+            for char in self._json['data'][each]:
+                if char not in 'ABCDEFGHIJLMNOPQRSTUVXZKYWabcdefghijlmnopqrstuvxzkyw0123456789_.@':
+                    return self.Reply('Invalid character {0} in {1}', False).format(char, each)
 
-        except (BrokenPipeError, ConnectionResetError): # Refresh connection handle when hang by the client
-            try:
-                update = {IP: PID for IP, PID in connections.items() if PID != int(connections[address].pid)}
+        if len(self._json['data']['username']) > self.maximum_length: # Username maximum length
+            return self.Reply('User can\'t have more than {0} characters'.format(self.username_length), False)
 
-                with open(File.link, 'w', encoding='UTF-8') as writelink:
-                    writelink.write(str(update))
+        try: # Insert new user in database
+            System.sql.execute('insert into Users values(?, ?, ?)', (self._json['data']['username'], crypt(self._json['data']['password']), self._json['data']['mail']))
+            System.connection.commit()
 
-                raise SystemExit
+        except Error as debug:
+            return self.Reply('Username already in use', False)
 
-            except KeyError:
-                raise SystemExit
+        return self.Reply('Registration success', True)
 
 
-    def Client(username, login): # Client handshake
+    def Getlibrary(self):
 
-        while True:
-            try:
-                self.Communicate(username)
-
-            except (BrokenPipeError, ConnectionResetError): # Refresh the connections, if a client hangs
-                try:
-                    update = {IP: PID for IP, PID in connections.items() if PID != int(connections[clientIP[0]])}
-
-                    with open(File.link, 'w', encoding='UTF-8') as writelink:
-                        writelink.write(str(update))
-
-                    raise SystemExit
-
-                except KeyError:
-                    raise SystemExit
-
-
-    def Communicate(username):
-
-        clientmessage = client.recv(1024)
-        decryption = str(keys.decrypt(clientmessage))[1:].strip('\'')
-        servermessage = ''
         listsend = []
 
-        if decryption == 'getlibrary': # Library request
-            for line in sql.execute('select * from Library'):
+        for line in System.sql.execute('select ID, Artist, Music, Album, Duration from Library'):
+            if line:
+                listsend.append(list(map(str, line)))
+
+        sleep(5)
+        self.Reply(listsend, True) # Sends all available music in the Library table
+
+    def Communicate(self):
+
+        clientmessage = self._client.read()
+        action, *args = clientmessage.decode().split(' ')
+        servermessage = 'nothing to say'
+
+        if action == 'getlibrary': # Library request
+            for line in System.sql.execute('select ID, Artist, Music, Album, Duration from Library'):
+                print(line)
                 if not len(line) == 0:
                     listline = list(line)
                     listline[0] = str(listline[0])
                     listsend.append("-".join(listline) + '|')
-
-            client.send(''.join(listsend).encode()) # Sends all available music in the Library table
+            sleep(5)
+            self._client.write(''.join(listsend).encode()) # Sends all available music in the Library table
             servermessage = 0
 
-        elif decryption == 'getplaylist': # User playlist request
-            for line in sql.execute('select * from Playlist where User = ?', (username,)):
+        elif action == 'getplaylist': # User playlist request
+            for line in System.sql.execute('select * from Playlist where User = ?', (self.username,)):
                 listsend.append(str(line[0]) + '-' + line[2])
 
             servermessage = '|'.join(listsend)
 
-        elif decryption.split(' ')[0] == 'getcover': # Album cover request, when not in client cache
-            for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
+            if not servermessage:
+                servermessage = '<reply>Empty</reply>'
+
+        elif action == 'getcover': # Album cover request, when not in client cache
+            for line in System.sql.execute('select * from Library where ID = ?', (args[0],)):
                 album = line[3]
 
             jpgpath = Directory.library + '/' + album + '.jpg'
 
             with open(jpgpath, 'rb') as openfile:
                 readfile = openfile.read()
-                client.send(readfile)
+                self._client.write(readfile)
                 servermessage = 0
 
-        elif decryption.split(' ')[0] == 'newplaylist': # New playlist request
-            name = 'Playlist ' + decryption.split(' ')[1]
-            sql.execute('insert into Playlist values (NULL, ?, ?)', (username, name))
-            connection.commit()
+        elif action == 'newplaylist': # New playlist request
+            name = 'Playlist ' + args[0]
+            System.sql.execute('insert into Playlist values (NULL, ?, ?)', (self.username, name))
+            System.connection.commit()
 
-            for line in sql.execute('select * from Playlist where User = ? and Name = ?', (username, name)):
-                ID, username, name = line
+            for line in System.sql.execute('select * from Playlist where User = ? and Name = ?', (self.username, name)):
+                ID, self.username, name = line
                 servermessage = str(ID) + '-' + name
 
-        elif decryption.split(' ')[0] == 'play': # Music stream request
-            for line in sql.execute('select * from Library where ID = ?', (decryption.split(' ')[1],)):
+        elif action == 'play': # Music stream request
+            for line in System.sql.execute('select * from Library where ID = ?', (args[0],)):
                 directory = line[5]
 
             songpath = Directory.library + '/' + directory
 
             with open(songpath, 'rb') as openfile:
                 readfile = openfile.read()
-                client.send(readfile)
+                self._client.write(readfile)
                 servermessage = 0
         
         try:
-            encryption = clientkey.encrypt(servermessage.encode('UTF-8'), 1024) # Files are sent unencrypted
-            client.send(encryption[0]) # Information is sent via asymmetric encryption, RSA
+            print(servermessage)
+            self.Reply(servermessage, action=True) # Information is sent via asymmetric encryption, RSA
 
         except AttributeError:
-            client.send('stop'.encode()) # File stream ending message
+            self.Reply('stop') # File stream ending message
+
+    def Listen(self):
+
+        try:
+            message = self._client.read().decode('utf-8')
+            print(message)
+            return loads(message)
+        except decoder.JSONDecodeError:
+            return self.Reply('Bad JSON construction', False)
+        except UnicodeDecodeError:
+            return self.Reply('Bad codec encode', False)
+
+    def Reply(self, text, action=False, label=None, data=None):
+
+        label = label or 'error'
+        if action:
+            label = label or 'success'
+
+        reply = dumps({"message": {"type": label, "text": text}, "action": action, "data": data})
+        self._client.write(reply.encode())
+
+        return action

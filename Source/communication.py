@@ -3,6 +3,7 @@ from crypt import crypt
 from json import decoder, dumps, loads
 from multiprocessing import Process
 from queue import Empty
+from re import match
 from sqlite3 import Error
 from socket import socket
 from ssl import wrap_socket
@@ -120,10 +121,19 @@ class API(object): # Build RestAPI
 
     def Register(self):
 
-        for each in ['username', 'password']: # Check for unknown characters
-            for char in self._json['data'][each]:
+        for each in ['username', 'password', 'mail']: # Check for unknown characters
+            try:
+                field = self._json['data'][each]
+            except KeyError:
+                return self.Reply('Unknown field {}'.format(each), False)
+            if not field: # Check if fields are not empty
+                return self.Reply('{0} can\'t be empty'.format(each.capitalize()), False)
+            for char in field:
                 if char not in 'ABCDEFGHIJLMNOPQRSTUVXZKYWabcdefghijlmnopqrstuvxzkyw0123456789_.@':
-                    return self.Reply('Invalid character {0} in {1}', False).format(char, each)
+                    return self.Reply('Invalid character {0} in {1}'.format(char, each), False)
+
+        if not match(r'[^@]+@[^@]+\.[^@]+', self._json['data']['mail']):
+            return self.Reply('Invalid e-mail address')
 
         if len(self._json['data']['username']) > self.maximum_length: # Username maximum length
             return self.Reply('User can\'t have more than {0} characters'.format(self.username_length), False)

@@ -41,14 +41,15 @@ for artist in sorted(listdir(args.source)):
         album_path = path.join(artist_path, album)
         for music in listdir(album_path):         
             music_path = path.join(album_path, music)
-        try: # create ID3 tag if not present
-            tags = ID3(music_path)
-        except ID3NoHeaderError:
-            print("Adding ID3 header;")
-            tags = ID3()
+            
+            try: # create ID3 tag if not present
+                tags = ID3(music_path)
+            except ID3NoHeaderError:
+                print("Adding ID3 header;")
+                tags = ID3()
 
-        tags["TIT2"] = TIT2(encoding=3, text=u'{0}'.format(music))
-        tags["TALB"] = TALB(encoding=3, text=u'{0}'.format(album))
-        tags["TPE1"] = TPE1(encoding=3, text=u'{0}'.format(artist))
+            tags["TIT2"] = TIT2(encoding=3, text=u'{0}'.format(music))
+            tags["TALB"] = TALB(encoding=3, text=u'{0}'.format(album))
+            tags["TPE1"] = TPE1(encoding=3, text=u'{0}'.format(artist))
 
-        tags.save(music_path)
+            tags.save(music_path)

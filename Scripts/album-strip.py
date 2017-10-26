@@ -32,7 +32,12 @@ def Parse():
 
 
 args = Parse()
-artist_filter = args.filter.split(',')
+
+try:
+    artist_filter = args.filter.split(',')
+except AttributeError:
+    artist_filter = None
+
 failed_transfers = []
 
 for artist in sorted(listdir(args.source)):

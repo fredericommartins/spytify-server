@@ -132,7 +132,7 @@ class API(object): # Build RestAPI
                 if char not in 'ABCDEFGHIJLMNOPQRSTUVXZKYWabcdefghijlmnopqrstuvxzkyw0123456789_.@':
                     return self.Reply('Invalid character {0} in {1}'.format(char, each), False)
 
-        if not match(r'[^@]+@[^@]+\.[^@]+', self._json['data']['mail']):
+        if not match(r'[^@]+@[^@]+\.[^@]+', self._json['data']['mail']): # Validate e-mail address
             return self.Reply('Invalid e-mail address')
 
         if len(self._json['data']['username']) > self.maximum_length: # Username maximum length
@@ -157,7 +157,7 @@ class API(object): # Build RestAPI
                 listsend.append(list(map(str, line)))
 
         sleep(5)
-        self.Reply(listsend, True) # Sends all available music in the Library table
+        self.Reply('Library data', action=True, data=listsend) # Sends all available music in the Library table
 
     def Communicate(self):
 

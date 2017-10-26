@@ -1,16 +1,47 @@
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from os import listdir, path, popen, remove, rmdir
 from shutil import copytree, Error, move
 from sys import argv
+from textwrap import dedent
 
 
-failed_transfers = [] 
+def Parse():
 
-for artist in sorted(listdir(argv[1])):
-    artist_path = path.join(argv[2], artist)
+    parser = ArgumentParser(prog=path.basename(__file__.rpartition('.')[0]), add_help=False, formatter_class=RawDescriptionHelpFormatter,
+                description=dedent('''\
+                              Download
+                        -------------------
+                        Music download conv
+                    '''), epilog=dedent('''\
+                        Check the git repository at https://github.com/flippym/spytify-server,
+                        for more information about usage, documentation and bug report.\
+                    ''')
+                )
+
+    optional = parser.add_argument_group('Flags')
+    optional.add_argument('-d', '--destiny', metavar='path', type=str, help='Destiny path for music', required=True)
+    optional.add_argument('-f', '--filter', metavar='exp', type=str, help='Artist comma delimited expression')
+    optional.add_argument('-s', '--source', metavar='path', type=str, help='Source path with music', required=True)
+    optional.add_argument('-h', '--help', action='help', help='Show this help message')
+    
+    if len(argv) == 1:
+        parser.print_help()
+        exit(1)
+
+    return parser.parse_args()
+
+
+args = Parse()
+artist_filter = args.filter.split(',')
+failed_transfers = []
+
+for artist in sorted(listdir(args.source)):
+    artist_path = path.join(args.destiny, artist)
     print("Copying:\n {0}".format(artist))
 
     try:
-        copytree(path.join(argv[1], artist), artist_path)
+	if not args.filter or args.filter and artist in artist_filter:
+            copytree(path.join(args.source, artist), artist_path)
     except (Error, OSError):
         failed_transfers.append(artist)
         continue
@@ -24,7 +55,7 @@ for artist in sorted(listdir(argv[1])):
             print(" {0}".format(music))
 
             try:
-                move(music_path, path.join(artist_path, '.'.join((music, 'mp3'))))
+                move(music_path, path.join(artist_path, music + '.mp3'))
             except (Error, OSError):
                 remove(music_path)
                 failed_transfers.append(music_path)

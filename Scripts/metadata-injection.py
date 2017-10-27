@@ -11,7 +11,8 @@ from urllib import request
 
 clientID = '702337754-900975F20663BD0B36A073B2E463DE14'
 userID = register(clientID)
-genres = ['Indie Rock', 'Acid Rock', 'Trance', 'Reggae', 'Grunge', 'New Romantic', 'Hard Rock']
+genres = ['Indie Rock', 'Acid Rock', 'Trance', 'Reggae', 'Grunge', 'New Romantic', 'Hard Rock', 'Southern Rap', 'Emo & Hardcore', 'Pop Punk', 'Rap Comedy',
+    'Heavy Metal', 'Rock']
 
 def Parse():
 

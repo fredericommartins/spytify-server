@@ -14,6 +14,7 @@ from urllib import request
 
 clientID = '702337754-900975F20663BD0B36A073B2E463DE14'
 userID = register(clientID)
+genres = ['Indie Rock', 'Acid Rock']
 
 def Parse():
 
@@ -51,7 +52,6 @@ for artist in sorted(listdir(args.source)):
             try: # create ID3 tag if not present
                 tags = id3.ID3(music_path)
             except id3.ID3NoHeaderError:
-                print("Adding ID3 header;")
                 tags = id3.ID3()
 
             result = search(clientID=clientID, userID=userID, artist=artist, track=music)
@@ -63,7 +63,7 @@ for artist in sorted(listdir(args.source)):
                     result['genre'] = result['genre'][each]['TEXT']
                     break
             else:
-                print("Failed with no appropriate genre found in:", result['genre'])
+                print("Failed with no appropriate genre found for '{0} - {1}':\n{2}".format(artist, music, result['genre']))
                 exit(1)
 
             tags["TIT2"] = id3.TIT2(encoding=3, text=u'{0}'.format(music))

@@ -17,7 +17,7 @@ genres = ['Indie Rock', 'Acid Rock', 'Trance', 'Reggae', 'Grunge', 'New Romantic
     'Electronica', 'Electric Blues', 'Punk', 'Urban', 'Old School Punk', 'Western Pop', 'Classic R&B', 'Classic Soul', 'Jazz', 'New Wave Rock', 'Brit Pop', 
     'Folk', 'Pop Electronica', 'Contemporary R&B', 'European Pop', 'Progressive House', 'Western Pop', 'New Wave Pop', 'East Coast Rap', 'Gangsta Rap',
     'West Coast', 'Garage Rock Revival', 'Funk', 'Alternative', 'Midwestern Rap', 'Funk Metal', 'Lounge', 'Brit Rock', 'Classic Country', 'Caribbean Pop',
-    'African Pop']
+    'African Pop', 'Goth', 'Ska Revival', 'Rockabilly Revival', 'Southern African']
 
 def Parse():
 
@@ -71,27 +71,30 @@ for artist in sorted(listdir(args.source)):
 
             try:
                 album_art = request.urlopen(result['album_art_url']).read()
-            except error.URLError:
-                pass
+            except (error.URLError, ValueError, TypeError):
+                album_art = None
 
             for each in result['genre'].keys():
                 if result['genre'][each]['TEXT'] in genres:
                     result['genre'] = result['genre'][each]['TEXT']
                     break
             else:
-                print("Failed with no appropriate genre found for '{0} - {1}':\n{2}".format(artist, music, result['genre']))
-                continue
+                if not result['genre']:
+                    result['genre'] = 'Other'
+                else:
+                    print("Failed with no appropriate genre found for '{0} - {1}':\n{2}".format(artist, music, result['genre']))
+                    continue
 
             if str(tags['TALB']) and str(tags['TALB']) != 'Unknown Album':
                 result['album_title'] = str(tags['TALB'])
 
             tags['TIT2'] = id3.TIT2(encoding=3, text=u'{0}'.format(music))
             tags['TALB'] = id3.TALB(encoding=3, text=u'{0}'.format(result['album_title']))
-            tags['TPE1'] = id3.TPE1(encoding=3, text=u'{0}'.format(result['album_artist_name']))
+            tags['TPE1'] = id3.TPE1(encoding=3, text=u'{0}'.format(real_artist))
             tags['TCON'] = id3.TCON(encoding=3, text=u'{0}'.format(result['genre']))
             tags['TDRC'] = id3.TDRC(encoding=3, text=u'{0}'.format(result['album_year']))
             tags['TRCK'] = id3.TRCK(encoding=3, text=u'{0}'.format(result['track_number']))
-            if result['album_art_url']:
+            if album_art:
                     tags['APIC'] = id3.APIC(encoding=3, mime='image/png' if '.png' in result['album_art_url'] else 'image/jpeg',
                         type=3, desc=u'Cover', data=album_art)
 

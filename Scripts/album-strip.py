@@ -45,8 +45,10 @@ for artist in sorted(listdir(args.source)):
     print("Copying:\n {0}".format(artist))
 
     try:
-	if not args.filter or args.filter and artist in artist_filter:
+        if not args.filter or args.filter and artist in artist_filter:
             copytree(path.join(args.source, artist), artist_path)
+        else:
+            continue    
     except (Error, OSError):
         failed_transfers.append(artist)
         continue

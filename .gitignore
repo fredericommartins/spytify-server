@@ -1,8 +1,8 @@
 */__pycache__/
 *.pyc
 orchestration/*.retry
-/libr
-/data
+libr
+data
 Scripts/pygn.py
-/temp
-!/Others/icon.ico
+temp
+!Others/icon.ico

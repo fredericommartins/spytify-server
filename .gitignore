@@ -3,6 +3,6 @@
 orchestration/*.retry
 /libr
 /data
-/Scripts/pygn.py
+Scripts/pygn.py
 /temp
 !/Others/icon.ico

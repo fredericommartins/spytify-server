@@ -12,12 +12,13 @@ from urllib import error, request
 clientID = '702337754-900975F20663BD0B36A073B2E463DE14'
 userID = register(clientID)
 relate = {'ACDC': 'AC/DC'}
+forbidden = ['Live']
 genres = ['Indie Rock', 'Acid Rock', 'Trance', 'Reggae', 'Grunge', 'New Romantic', 'Hard Rock', 'Southern Rap', 'Emo & Hardcore', 'Pop Punk', 'Rap Comedy',
     'Heavy Metal', 'Rock', 'Classical', 'Brazilian Pop', 'European Traditional', 'Samba', 'Industrial', 'Other', 'Synth Pop', 'Alternative Rock', 'House',
     'Electronica', 'Electric Blues', 'Punk', 'Urban', 'Old School Punk', 'Western Pop', 'Classic R&B', 'Classic Soul', 'Jazz', 'New Wave Rock', 'Brit Pop', 
     'Folk', 'Pop Electronica', 'Contemporary R&B', 'European Pop', 'Progressive House', 'Western Pop', 'New Wave Pop', 'East Coast Rap', 'Gangsta Rap',
     'West Coast', 'Garage Rock Revival', 'Funk', 'Alternative', 'Midwestern Rap', 'Funk Metal', 'Lounge', 'Brit Rock', 'Classic Country', 'Caribbean Pop',
-    'African Pop', 'Goth', 'Ska Revival', 'Rockabilly Revival', 'Southern African']
+    'African Pop', 'Goth', 'Ska Revival', 'Rockabilly Revival', 'Southern African', 'Pop']
 
 def Parse():
 
@@ -52,7 +53,7 @@ for artist in sorted(listdir(args.source)):
         continue
     for album in listdir(artist_path):
         album_path = path.join(artist_path, album)
-        for music in listdir(album_path):         
+        for music in listdir(album_path): 
             music_path = path.join(album_path, music)
             try: # create ID3 tag if not present
                 tags = id3.ID3(music_path)
@@ -64,6 +65,12 @@ for artist in sorted(listdir(args.source)):
                     real_artist = relate[artist]
                 else:
                     real_artist = artist
+
+                if music[-4:] == '.mp3':
+                    music = music[:-4]
+                else:
+                    music_path += '.mp3'
+
                 result = search(clientID=clientID, userID=userID, artist=real_artist, track=music)
             except UnboundLocalError:
                 print("Failed query with artist '{0}' and music '{1}'".format(artist, music))
@@ -85,7 +92,7 @@ for artist in sorted(listdir(args.source)):
                     print("Failed with no appropriate genre found for '{0} - {1}':\n{2}".format(artist, music, result['genre']))
                     continue
 
-            if str(tags['TALB']) and str(tags['TALB']) != 'Unknown Album':
+            if 'TALB' in tags and str(tags['TALB']) and str(tags['TALB']) != 'Unknown Album':
                 result['album_title'] = str(tags['TALB'])
 
             tags['TIT2'] = id3.TIT2(encoding=3, text=u'{0}'.format(music))
@@ -106,7 +113,7 @@ for artist in sorted(listdir(args.source)):
                     mkdir(real_album_path)
                 except FileExistsError:
                     pass
-                rename(music_path, path.join(real_album_path, music))
+                rename(music_path, path.join(real_album_path, music + '.mp3'))
 
         if not listdir(album_path):
             rmdir(album_path)

@@ -5,6 +5,8 @@
 
 from __future__ import unicode_literals
 
+from os import listdir, path
+from shutil import move
 from sys import argv
 from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError
@@ -24,3 +26,11 @@ with YoutubeDL(ydl_opts) as ydl, open(argv[1], 'r') as openfile:
 
     except DownloadError as error:
         print("\033[31mFailed\033[0m: {0}".format(error))
+
+for each in listdir('.'):
+    if path.isfile(each) and each[-4:] == '.mp3':
+        print("Moving '{0}'")
+        artist = input("Artist: ")
+        song = input("Song: ")
+
+        move(each, '/home/flippy/Music/{0}/Unknown Album/{1}'.format(artist, song))

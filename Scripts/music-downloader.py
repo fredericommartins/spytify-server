@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
-# pip3 isntall youtube_dl
+# pip3 install youtube_dl
 # dnf install ffmpeg
 
 from __future__ import unicode_literals
 
-from os import listdir, makedirs, path
+from os import listdir, makedirs, path, system
 from shutil import move
 from sys import argv
 from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError
 
+library_path = '/music/'
 ydl_opts = {'format': 'bestaudio/best', 
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
@@ -46,8 +47,10 @@ for each in listdir('.'):
         if song_input:
             song = song_input
 
-        if not path.exists('/home/flippy/Music/{0}'.format(artist)):
-            makedirs('/home/flippy/Music/{0}'.format(artist))
-        if not path.exists('/home/flippy/Music/{0}/Unknown Album'.format(artist)):
-            makedirs('/home/flippy/Music/{0}/Unknown Album'.format(artist))
-        move(each, '/home/flippy/Music/{0}/Unknown Album/{1}.mp3'.format(artist, song))
+        if not path.exists('{0}{1}'.format(library_path, artist)):
+            makedirs('{0}{1}'.format(library_path, artist))
+        if not path.exists('{0}{1}/Unknown Album'.format(library_path, artist)):
+            makedirs('{0}{1}/Unknown Album'.format(library_path, artist))
+        move(each, '{0}{1}/Unknown Album/{1}.mp3'.format(library_path, artist, song))
+
+system('restorecon -rv {0}; chown mpd:mpd -R {0}'.format(library_path)

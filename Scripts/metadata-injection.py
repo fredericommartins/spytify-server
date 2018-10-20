@@ -3,7 +3,7 @@
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from mutagen import id3
 from os import listdir, mkdir, path, rename, rmdir
-from pygn import register, search # https://github.com/cweichen/pygn
+from pygn import register, search # https://raw.githubusercontent.com/cweichen/pygn/master/pygn.py
 from sys import argv
 from textwrap import dedent
 from urllib import error, request
@@ -106,6 +106,7 @@ for artist in sorted(listdir(args.source)):
                         type=3, desc=u'Cover', data=album_art)
 
             tags.save(music_path)
+            print("Artist: {} | Album: {} ({}) | {} Music: {} ({})".format(real_artist, result['album_title'], result['album_year'], result['track_number'], music, result['genre']))
 
             if album is not result['album_title']:
                 real_album_path = path.join(artist_path, ''.join(result['album_title'].split('/')))

@@ -51,6 +51,6 @@ for each in listdir('.'):
             makedirs('{0}{1}'.format(library_path, artist))
         if not path.exists('{0}{1}/Unknown Album'.format(library_path, artist)):
             makedirs('{0}{1}/Unknown Album'.format(library_path, artist))
-        move(each, '{0}{1}/Unknown Album/{1}.mp3'.format(library_path, artist, song))
+        move(each, '{0}{1}/Unknown Album/{2}.mp3'.format(library_path, artist, song))
 
 system('restorecon -rv {0}; chown mpd:mpd -R {0}'.format(library_path)

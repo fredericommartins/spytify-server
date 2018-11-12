@@ -5,6 +5,7 @@
 
 from __future__ import unicode_literals
 
+from mpd import MPDClient
 from os import listdir, makedirs, path, system
 from shutil import move
 from sys import argv
@@ -12,6 +13,11 @@ from youtube_dl import YoutubeDL
 from youtube_dl.utils import DownloadError
 
 library_path = '/music/'
+mpd = MPDClient()
+music2add = []
+
+mpd.connect("localhost", 6600)
+
 ydl_opts = {'format': 'bestaudio/best', 
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
@@ -52,5 +58,12 @@ for each in listdir('.'):
         if not path.exists('{0}{1}/Unknown Album'.format(library_path, artist)):
             makedirs('{0}{1}/Unknown Album'.format(library_path, artist))
         move(each, '{0}{1}/Unknown Album/{2}.mp3'.format(library_path, artist, song))
+        music2add.append('{0}/Unknown Album/{1}.mp3'.format(artist, song))
 
+mpd.update()
 system('restorecon -rv {0}; chown mpd:mpd -R {0}'.format(library_path)
+
+for music in music2add: # Add new songs to MPD playlist
+    mpd.playlistadd('New', music)
+
+mpd.load('New')

@@ -65,4 +65,5 @@ system('restorecon -rv {0}; chown mpd:mpd -R {0}'.format(library_path))
 for music in new_musics: # Add new songs to MPD playlist
     mpd.playlistadd('New', music)
 
+mpd.clear()
 mpd.load('New')

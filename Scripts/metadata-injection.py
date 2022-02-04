@@ -28,7 +28,7 @@ def Parse():
                         ------------------
                         Metadata Injection
                     '''), epilog=dedent('''\
-                        Check the git repository at https://github.com/flippym/spytify-server,
+                        Check the git repository at https://github.com/fredericomateusmartins/spytify-server,
                         for more information about usage, documentation and bug report.\
                     ''')
                 )

@@ -24,13 +24,12 @@ ydl_opts = {'format': 'bestaudio/best',
             }
 
 with YoutubeDL(ydl_opts) as ydl, open(argv[1], 'r') as openfile:
-    try:
-        for url in openfile.read().split('\n'):
-            if url:
+    for url in openfile.read().split('\n'):
+        if url:
+            try:
                 ydl.download([url])
-
-    except DownloadError as error:
-        print("\033[31mFailed\033[0m: {0}".format(error))
+            except DownloadError as error:
+                print("\033[31mFailed\033[0m: {0}".format(error))
 
 for each in listdir('.'):
     if path.isfile(each) and each[-4:] == '.mp3':
